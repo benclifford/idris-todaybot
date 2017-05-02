@@ -25,6 +25,7 @@ When checking argument env to function Effects.run:
 -}
 import Effect.File
 
+%lib C "curl"
 %include C "ffitest.h"
 %link C "ffitest.o"
 
