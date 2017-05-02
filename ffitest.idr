@@ -40,6 +40,7 @@ data CurlOption : Type where
   CurlOptionCopyPostFields : CurlOption
   CurlOptionUserAgent : CurlOption
   CurlOptionVerbose : CurlOption
+  CurlOptionWriteFunction : CurlOption
 
 -- QUESTION/FOR DISCUSSION: these values are defined in
 -- curl.h (by a fancy macro that also knows what the
@@ -60,6 +61,7 @@ curlOptionToFFI CurlOptionUserPwd = 10005
 -- don't know how it interacts with idris memory management.
 curlOptionToFFI CurlOptionCopyPostFields = 10165
 curlOptionToFFI CurlOptionVerbose = 41
+curlOptionToFFI CurlOptionWriteFunction = 20011
 
 total curlOptionType : CurlOption -> Type
 curlOptionType CurlOptionUrl = String
@@ -67,6 +69,7 @@ curlOptionType CurlOptionUserAgent = String
 curlOptionType CurlOptionUserPwd = String
 curlOptionType CurlOptionCopyPostFields = String
 curlOptionType CurlOptionVerbose = Int
+curlOptionType CurlOptionWriteFunction = Ptr
 
 -- a handle to a curl "easy session". might be better to
 -- wrap it so that Ptr vs Ptr type errors are detected?
@@ -96,7 +99,11 @@ curlEasySetoptLong easy_handle opt param = do
   -- TODO: check ret
   pure ret
 
-
+total curlEasySetoptPtr : EasyHandle -> (opt : CurlOption) -> Ptr -> IO Int
+curlEasySetoptPtr easy_handle opt param = do
+  ret <- foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> Ptr -> IO Int) easy_handle (curlOptionToFFI opt) param
+  -- TODO: check ret
+  pure ret
 
 
 -- QUESTION/FOR DISCUSSION:
@@ -116,6 +123,7 @@ curlEasySetopt easy_handle opt param = case opt of
   CurlOptionUserPwd => curlEasySetoptString easy_handle opt param
   CurlOptionCopyPostFields => curlEasySetoptString easy_handle opt param
   CurlOptionVerbose => curlEasySetoptLong easy_handle opt param
+  CurlOptionWriteFunction => curlEasySetoptPtr easy_handle opt param
 
 -- === debugging dependent types of setopt
 {-
@@ -164,6 +172,16 @@ shred_config config =
 
 partial fromJust : Maybe a -> a
 fromJust (Just v) = v
+
+
+write_callback_body : Ptr -> Int -> Int -> Ptr -> Int
+write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
+  putStrLn "In write_callback_body"
+  pure (s1 * s2)
+
+write_callback : Ptr
+write_callback = unsafePerformIO $
+  foreign FFI_C "%wrapper" (CFnPtr (Ptr -> Int -> Int -> Ptr -> Int) -> IO Ptr) (MkCFnPtr write_callback_body)
 
 partial main : IO ()
 main = do
@@ -259,7 +277,7 @@ main = do
 
   ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
 
-  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "lsc-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
 
   putStrLn "set user agent result code:"
   printLn ret
@@ -269,6 +287,39 @@ main = do
   ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
 
   ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+
+
+  -- TODO: callback that will get the output and do something with
+  -- it (make it into an idris String, for example, so that we can
+  -- then parse it).
+
+  -- this is a bit weird because it is some unsafePerformIO style
+  -- callback ... but I want to be left with the accumulated state
+  -- at the end...
+
+  -- how do I want to/can I accumulate state in idris in IO? does
+  -- it have IORefs? what are the other options?
+
+  -- perhaps I should accumulate it in the C side and let there
+  -- be a memory leak/resource management problem for now?
+  -- and then be able to grab it after the perform?
+
+  -- perhaps an orthogonal (to libcurl) memory buffer allocation
+  -- library? (uniqueness types look interesting but not sure if they
+  -- fit in with this model of passing in addresses to C libraries?)
+
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+
+  -- ugh! this can't wrap a function, for some reason ... it's
+  -- saying "idris: Idris function couldn't be wrapped."
+  -- I don't know why entirely: the C function should be available
+  -- at the call to write_callback, but it looks like the actual
+  -- function needs to be known in the line where 'foreign' is
+  -- called, rather than it being passed around? QUESTION/DISCUSSION
+  -- so I'm only going to be able to statically set a write function?
+
+  -- or can I use "%wrapper" to get the address at run time and then
+  -- pass that in as write_callback?
 
   putStrLn "Performing easy session"
 
