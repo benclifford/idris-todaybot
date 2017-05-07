@@ -1,6 +1,7 @@
 
 -- -p config
 import Config.YAML
+import Config.JSON
 
 -- -p effects
 import Effects
@@ -396,6 +397,48 @@ main = do
 
   putStrLn "idris-side: buffer string is: "
   putStrLn response_body
+
+  -- TODO: parse out the access_token JSON object field.
+  -- TODO: could do with a JSON parser here... there's one inside
+  -- the config module, though...
+
+  let asJSON = Config.JSON.fromString response_body
+
+
+  putStrLn "buffer as json:"
+  printLn asJSON
+
+  -- QUESTION/COMMENT: using this case as a let, and not returning
+  -- IO actions doesn't seem to work for me, with an incomplete
+  -- term error... not sure why.
+{-
+
+QUESTION/COMMENT: in this code sample it doesn't seem to figure
+out that j should have a JSON type, and the println fails with
+Can't find implementation for Show a
+
+(which i think means it isn't figuring out that a should be a JSONValue
+type coming from the type of dict?)
+
+doing pattern matching differently ends up working, but I'm not
+sure why this doesn't work...
+
+  j <- case asJSON of
+            Right (JsonObject dict) => pure $ Data.AVL.Dict.lookup "access_token" dict
+            -- _ => pure "IS OTHERWISE"  -- TODO handle this better (with error monad? / effect?)
+
+  putStrLn "j is:"
+  printLn j
+
+-}
+
+  let (Right (JsonObject dict)) = asJSON -- TODO error handling on non-match case
+ 
+  let (Just (JsonString access_token)) = Data.AVL.Dict.lookup "access_token" dict
+ 
+  putStrLn "access_token is:"
+  putStrLn access_token
+
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
