@@ -42,6 +42,7 @@ data CurlOption : Type where
   CurlOptionUserAgent : CurlOption
   CurlOptionVerbose : CurlOption
   CurlOptionWriteFunction : CurlOption
+  CurlOptionWriteData : CurlOption
 
 -- QUESTION/FOR DISCUSSION: these values are defined in
 -- curl.h (by a fancy macro that also knows what the
@@ -63,6 +64,7 @@ curlOptionToFFI CurlOptionUserPwd = 10005
 curlOptionToFFI CurlOptionCopyPostFields = 10165
 curlOptionToFFI CurlOptionVerbose = 41
 curlOptionToFFI CurlOptionWriteFunction = 20011
+curlOptionToFFI CurlOptionWriteData = 10001
 
 total curlOptionType : CurlOption -> Type
 curlOptionType CurlOptionUrl = String
@@ -71,6 +73,7 @@ curlOptionType CurlOptionUserPwd = String
 curlOptionType CurlOptionCopyPostFields = String
 curlOptionType CurlOptionVerbose = Int
 curlOptionType CurlOptionWriteFunction = Ptr
+curlOptionType CurlOptionWriteData = Ptr
 
 -- a handle to a curl "easy session". might be better to
 -- wrap it so that Ptr vs Ptr type errors are detected?
@@ -125,6 +128,7 @@ curlEasySetopt easy_handle opt param = case opt of
   CurlOptionCopyPostFields => curlEasySetoptString easy_handle opt param
   CurlOptionVerbose => curlEasySetoptLong easy_handle opt param
   CurlOptionWriteFunction => curlEasySetoptPtr easy_handle opt param
+  CurlOptionWriteData => curlEasySetoptPtr easy_handle opt param
 
 -- === debugging dependent types of setopt
 {-
@@ -174,10 +178,53 @@ shred_config config =
 partial fromJust : Maybe a -> a
 fromJust (Just v) = v
 
+-- TODO: this should be captured at compile time
+-- eg using type providers as in example
+SizeT : Type
+SizeT = Int
+
+alloc_bytes : SizeT -> IO Ptr
+alloc_bytes count = foreign FFI_C "alloc_bytes" (SizeT -> IO Ptr) count
+
+memcpy : Ptr -> Ptr -> SizeT -> IO Ptr
+memcpy dest src count = foreign FFI_C "memcpy" (Ptr -> Ptr -> SizeT -> IO Ptr) dest src count
+
+-- TODO: should be a byte not an int
+poke_byte : (base : Ptr) -> (offset : Int) -> (value : Int) -> IO ()
+poke_byte base offset value = foreign FFI_C "poke_byte" (Ptr -> Int -> Int -> IO ()) base offset value
+
+-- TODO: inconsistent offset UI wrt poke_byte
+poke_ptr : (base : Ptr) -> (value : Ptr) -> IO ()
+poke_ptr base value = foreign FFI_C "poke_ptr" (Ptr -> Ptr -> IO ()) base value
 
 write_callback_body : Ptr -> Int -> Int -> Ptr -> Int
 write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
   putStrLn "In write_callback_body"
+
+  -- TODO: what kind of encoding is this data? That's going
+  -- to need to be diddled with but assume it can be treated as a
+  -- String by idris directly now (with the addition of a 0 on
+  -- the end).
+
+  -- TODO: also for now assume the data will arrive as a single
+  -- block which is probably true for the auth response mostly
+  -- but not for the bigger responses...
+
+  -- TODO: some of these are byte counts, some might be size_ts?
+  -- 
+  let size_to_alloc = s1 * s2 + 1
+  longterm_buf <- alloc_bytes size_to_alloc
+  memcpy longterm_buf curldata (s1 * s2)
+
+  -- TODO: can I do pointer arithmetic?
+  -- naively s1,s2 and longterm_buf are the wrong types
+  -- but perhaps implicit conversions could help?
+ 
+  poke_byte longterm_buf (s1 * s2) 0
+
+  poke_ptr userdata longterm_buf
+
+  putStrLn "Done with write_callback_body"
   pure (s1 * s2)
 
 write_callback : Ptr
@@ -311,6 +358,12 @@ main = do
 
   ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
 
+  -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
+  -- enough for now.
+  content_buf_ptr <- alloc_bytes 16
+
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+
   -- ugh! this can't wrap a function, for some reason ... it's
   -- saying "idris: Idris function couldn't be wrapped."
   -- I don't know why entirely: the C function should be available
@@ -329,6 +382,15 @@ main = do
 
   putStrLn "easy_perform return code:"
   printLn ret
+
+  -- at this point, content_buf_ptr should be a **content
+  -- reference that we can somehow cast into a string
+  -- and then parse as JSON. and then leave to the winds
+  -- (or rather, some kind of cleardown point that we believe
+  -- it is safe to unalloc?) - regions/linear types?
+
+
+  foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
