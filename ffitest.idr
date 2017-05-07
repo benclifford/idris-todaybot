@@ -392,6 +392,11 @@ main = do
 
   foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
 
+  response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
+
+  putStrLn "idris-side: buffer string is: "
+  putStrLn response_body
+
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
   putStrLn "idris ffi test end"

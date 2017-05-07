@@ -42,5 +42,9 @@ void poke_ptr(void **base, void *value) {
 }
 
 void dump_buffer(char **buffer) {
-  printf("buffer: %s\n", *buffer);
+  printf("c-side: dump_buffer: %s\n", *buffer);
+}
+
+char *cast_to_string_helper(char **buffer) {
+  return *buffer;
 }

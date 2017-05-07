@@ -10,3 +10,5 @@ void poke_ptr(void **base, void *value);
 
 void dump_buffer(char **buffer);
 
+char *cast_to_string_helper(char **buffer);
+
