@@ -36,8 +36,8 @@ import Effect.File
 
 %include C "curl/curl.h"
 
-callback : String -> ()
-callback s = unsafePerformIO $ do
+test_ffi_callback : String -> ()
+test_ffi_callback s = unsafePerformIO $ do
   putStrLn $ "CALLBACK!!! string=" ++ s
 
 data CurlOption : Type where
@@ -241,6 +241,12 @@ write_callback = unsafePerformIO $
   foreign FFI_C "%wrapper" (CFnPtr (Ptr -> Int -> Int -> Ptr -> Int) -> IO Ptr) (MkCFnPtr write_callback_body)
 
 
+test_ffi : IO ()
+test_ffi = do
+  s <- foreign FFI_C "foo" (String -> CFnPtr ( String -> () ) -> IO String) "hello" (MkCFnPtr test_ffi_callback)
+
+  putStrLn $ "string returned is: " ++ s
+
 partial get_access_token : IO String
 get_access_token = do
 
@@ -315,9 +321,7 @@ get_access_token = do
            
 
 
-  s <- foreign FFI_C "foo" (String -> CFnPtr ( String -> () ) -> IO String) "hello" (MkCFnPtr callback)
 
-  putStrLn $ "string returned is: " ++ s
   -- now init an easy session, giving an easy handle.
 
   putStrLn "Initialising easy session"
@@ -445,6 +449,8 @@ sure why this doesn't work...
 partial main : IO ()
 main = do
   putStrLn "idris ffi test start"
+
+  test_ffi
 
   putStrLn $ "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
