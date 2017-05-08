@@ -48,3 +48,8 @@ void dump_buffer(char **buffer) {
 char *cast_to_string_helper(char **buffer) {
   return *buffer;
 }
+
+void *get_null_pointer() {
+  return NULL;
+}
+

@@ -4,6 +4,10 @@ import Config.YAML
 import Config.JSON
 
 -- -p effects
+-- QUESTION/DISCUSSION
+-- importing Effects appears to make code (even simple-ish
+-- code) take much longer to compile. see
+-- https://github.com/benclifford/idris-hang-1
 import Effects
 
 -- QUESTION/FOR DISCUSSION:
@@ -44,6 +48,7 @@ data CurlOption : Type where
   CurlOptionVerbose : CurlOption
   CurlOptionWriteFunction : CurlOption
   CurlOptionWriteData : CurlOption
+  CurlOptionHttpHeader : CurlOption
 
 -- QUESTION/FOR DISCUSSION: these values are defined in
 -- curl.h (by a fancy macro that also knows what the
@@ -66,6 +71,7 @@ curlOptionToFFI CurlOptionCopyPostFields = 10165
 curlOptionToFFI CurlOptionVerbose = 41
 curlOptionToFFI CurlOptionWriteFunction = 20011
 curlOptionToFFI CurlOptionWriteData = 10001
+curlOptionToFFI CurlOptionHTTPHeader = 10023
 
 total curlOptionType : CurlOption -> Type
 curlOptionType CurlOptionUrl = String
@@ -75,6 +81,7 @@ curlOptionType CurlOptionCopyPostFields = String
 curlOptionType CurlOptionVerbose = Int
 curlOptionType CurlOptionWriteFunction = Ptr
 curlOptionType CurlOptionWriteData = Ptr
+curlOptionType CurlOptionHttpHeader = Ptr -- to curl slist
 
 -- a handle to a curl "easy session". might be better to
 -- wrap it so that Ptr vs Ptr type errors are detected?
@@ -123,6 +130,7 @@ curlEasySetoptPtr easy_handle opt param = do
 
 total curlEasySetopt : EasyHandle -> (opt : CurlOption) -> curlOptionType opt -> IO Int
 curlEasySetopt easy_handle opt param = case opt of
+  CurlOptionHttpHeader => curlEasySetoptPtr easy_handle opt param
   CurlOptionUrl => curlEasySetoptString easy_handle opt param
   CurlOptionUserAgent => curlEasySetoptString easy_handle opt param
   CurlOptionUserPwd => curlEasySetoptString easy_handle opt param
@@ -232,10 +240,9 @@ write_callback : Ptr
 write_callback = unsafePerformIO $
   foreign FFI_C "%wrapper" (CFnPtr (Ptr -> Int -> Int -> Ptr -> Int) -> IO Ptr) (MkCFnPtr write_callback_body)
 
-partial main : IO ()
-main = do
-  putStrLn "idris ffi test start"
 
+partial get_access_token : IO String
+get_access_token = do
 
   -- QUESTION/DISCUSSION this uses effects, but should I spread
   -- the use of effects out to the rest of the program?
@@ -262,7 +269,7 @@ main = do
   -- than (eg.) giving an error that we stopped parsing before the
   -- end of the file or that the symbol is invalid. (are they invalid?)
 
-  config <- run $ readYAMLConfig "secrets.yaml"
+  config <- Effects.run $ readYAMLConfig "secrets.yaml"
   putStrLn "Config is:"
   printLn config
 
@@ -275,6 +282,8 @@ main = do
 -- QUESTION/DISCUSSION: using "Just username" in this let binding
 -- causes idris command to run for at least 4 minutes (possibly
 -- forever?). but fromJust form takes about 10s to compile.
+-- (also later I've encountered a similar set of symptoms, but
+--  not using a Just LHS pattern...)
   let username = fromJust $ lookup "username" config_map
 
   -- let (Just username) = lookup "username" config_map
@@ -309,15 +318,6 @@ main = do
   s <- foreign FFI_C "foo" (String -> CFnPtr ( String -> () ) -> IO String) "hello" (MkCFnPtr callback)
 
   putStrLn $ "string returned is: " ++ s
-
-  putStrLn $ "calling global init for curl"
-  -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
-  printLn ret
-  -- TODO: check ret == 0
-  putStrLn $ "called global init for curl"
-
-
   -- now init an easy session, giving an easy handle.
 
   putStrLn "Initialising easy session"
@@ -439,6 +439,81 @@ sure why this doesn't work...
   putStrLn "access_token is:"
   putStrLn access_token
 
+  pure access_token
+
+
+partial main : IO ()
+main = do
+  putStrLn "idris ffi test start"
+
+  putStrLn $ "calling global init for curl"
+  -- TODO: send it proper init code not 3 (extract from lib...)
+  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
+  printLn ret
+  -- TODO: check ret == 0
+  putStrLn $ "called global init for curl"
+
+  access_token <- get_access_token
+
+  -- finally, we're logged in.
+
+  -- now we can make calls to oauth.reddit.com using the access token
+
+  -- getHotPosts using libcurl.
+
+  easy_handle2 <- foreign FFI_C "curl_easy_init" (IO (Ptr))
+
+  -- TODO: better abstractions for this slist? Can we do it functionally
+  -- using unsafePerformIO? and using a better pointer type rather than
+  -- Ptr.
+  empty_slist <- foreign FFI_C "get_null_pointer" (IO Ptr)
+
+  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) empty_slist ("Authorization: " ++ "bearer " ++ access_token)
+
+
+  -- TODO: factor this for calling on any http request
+  ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
+  content_buf_ptr <- alloc_bytes 16
+  ret <- curlEasySetopt easy_handle2 CurlOptionWriteData content_buf_ptr
+
+
+  -- TODO: factor into "set todaybot useragent header"
+  ret <- curlEasySetopt easy_handle2 CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+
+  ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
+
+  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=100"
+  -- TODO: check ret
+
+  putStrLn "Performing easy session (2)"
+
+  ret <- foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) easy_handle2
+  -- TODO: assert ret == 0//CURLE_OK
+
+  putStrLn "easy_perform return code:"
+  printLn ret
+
+-- DISCUSSION:
+-- with everything up to here mostly in a big main function
+-- rather than separated into eg get_access_token:
+-- at least 3m19s compile time (aborted by me),
+-- with the above printLn ret in
+-- but the below dump buffer out.
+-- With below dump buffer in, bu printLn out at least 4m22s aborted
+-- by me.
+-- With neither, compile time is about 1m20s
+-- With both, real time before I aborted was 16m47s, but only 1m41s cpu time
+-- with the rest (by the sound of my HD) being used in swapping...
+-- so only a few seconds extra progress... maybe there's some serious
+-- memory usage that can be diddled in the idris compiler?
+-- I can possibly can look at that?
+-- By pulling out some of the code into its own function,
+-- get_access_token, real time goes down to 1m1s even with both
+-- above and below lines in, which unblocks me for now and points
+-- in the direction, perhaps, that it is large do blocks that are
+-- causing a problem?
+
+  foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())

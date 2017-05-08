@@ -12,3 +12,4 @@ void dump_buffer(char **buffer);
 
 char *cast_to_string_helper(char **buffer);
 
+void *get_null_pointer();

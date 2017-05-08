@@ -5,5 +5,9 @@ idris -p effects \
       -p config \
       --total \
       ffitest.idr \
-      -o i.out
+      -o i.out 
+
+# \
+#      --V2 \
+#      --log 255
 
