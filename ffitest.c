@@ -41,6 +41,10 @@ void poke_ptr(void **base, void *value) {
   *base = value;
 }
 
+void *peek_ptr(void **base) {
+  return *base;
+}
+
 void dump_buffer(char **buffer) {
   printf("c-side: dump_buffer: %s\n", *buffer);
 }
@@ -51,5 +55,9 @@ char *cast_to_string_helper(char **buffer) {
 
 void *get_null_pointer() {
   return NULL;
+}
+
+void *add_ptr_offset(void *base, int offset) {
+  return base+offset;
 }
 

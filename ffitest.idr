@@ -203,8 +203,15 @@ SizeT = Int
 -- which I discovered after implementing this. Specifically
 -- it looks like we can do garbage collection, if careful.
 
+-- TODO: memory allocation should probably do some validity checking
+-- and have some appropriate exception-effect or some such on
+-- failure, rather than returning NULL?
+
 alloc_bytes : SizeT -> IO Ptr
 alloc_bytes count = foreign FFI_C "alloc_bytes" (SizeT -> IO Ptr) count
+
+realloc_bytes : Ptr -> SizeT -> IO Ptr
+realloc_bytes old count = foreign FFI_C "realloc" (Ptr -> SizeT -> IO Ptr) old count
 
 memcpy : Ptr -> Ptr -> SizeT -> IO Ptr
 memcpy dest src count = foreign FFI_C "memcpy" (Ptr -> Ptr -> SizeT -> IO Ptr) dest src count
@@ -217,9 +224,34 @@ poke_byte base offset value = foreign FFI_C "poke_byte" (Ptr -> Int -> Int -> IO
 poke_ptr : (base : Ptr) -> (value : Ptr) -> IO ()
 poke_ptr base value = foreign FFI_C "poke_ptr" (Ptr -> Ptr -> IO ()) base value
 
+peek_ptr : (base : Ptr) -> IO Ptr
+peek_ptr base = foreign FFI_C "peek_ptr" (Ptr -> IO Ptr) base
+
+-- QUESTION/DISCUSSION: Really I would like some kind of
+-- Eq on pointers. But I think maybe I don't have those?
+
+is_null : Ptr -> Bool
+is_null ptr = ptr == null_pointer
+
+{-
+is_null : Ptr -> Bool
+is_null ptr = do
+  v <- foreign FFI_C "is_null" (Ptr -> IO Int) ptr
+  case v of
+    501 => True
+    502 => False
+-}
+
+
 write_callback_body : Ptr -> Int -> Int -> Ptr -> Int
 write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
   putStrLn "In write_callback_body"
+
+  -- TODO: assert s1*s2 != 0 - if it does, then some of the
+  -- memory allocation C calls are going to free memory rather
+  -- than allocate a 0 byte buffer. I think this is unlikely to
+  -- happen in practice as libcurl wouldn't call the callback in
+  -- that way, but it is not captured in the types...
 
   -- TODO: what kind of encoding is this data? That's going
   -- to need to be diddled with but assume it can be treated as a
@@ -232,15 +264,40 @@ write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
 
   -- TODO: some of these are byte counts, some might be size_ts?
   -- 
-  let size_to_alloc = s1 * s2 + 1
-  longterm_buf <- alloc_bytes size_to_alloc
-  memcpy longterm_buf curldata (s1 * s2)
+
+  old_buf <- peek_ptr userdata
+
+  old_length <- case is_null old_buf of
+    True => pure 0
+    False => foreign FFI_C "strlen" (Ptr -> IO Int) old_buf
+
+  let size_to_alloc = s1 * s2 + old_length + 1
+  longterm_buf <- realloc_bytes old_buf size_to_alloc
+
+  -- rather than a memcpy this should be a concatenation
+  -- which after one iteration will be fine because we know
+  -- that the old buffer will be null terminated;
+  -- but in the first iteration, the old_buf didn't even
+  -- exist so it couldn't be null terminated.
+
+  -- could switch on the value of old_buf being null or not?
+  -- although perhaps it would have been nicer if old_buf always
+  -- pointed to a valid null terminated string so that we don't need
+  -- to change code-paths here?
+
+  -- TODO: need an offset of old_length for the copy base
+  -- (longterm_buf + old_length rather than longterm_buf)
+  -- and likewise in the null pointer setting.
+
+  new_base <- foreign FFI_C "add_ptr_offset" (Ptr -> SizeT -> IO Ptr) longterm_buf old_length
+
+  memcpy new_base curldata (s1 * s2)
 
   -- TODO: can I do pointer arithmetic?
   -- naively s1,s2 and longterm_buf are the wrong types
   -- but perhaps implicit conversions could help?
  
-  poke_byte longterm_buf (s1 * s2) 0
+  poke_byte longterm_buf (s1 * s2 + old_length) 0
 
   poke_ptr userdata longterm_buf
 
@@ -377,7 +434,7 @@ get_access_token = do
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
   -- enough for now.
   content_buf_ptr <- alloc_bytes 16
-
+  poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
 
   -- ugh! this can't wrap a function, for some reason ... it's
@@ -492,6 +549,7 @@ main = do
   -- TODO: factor this for calling on any http request
   ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
   content_buf_ptr <- alloc_bytes 16
+  poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle2 CurlOptionWriteData content_buf_ptr
 
 
