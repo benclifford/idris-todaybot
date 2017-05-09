@@ -30,11 +30,18 @@ When checking argument env to function Effects.run:
 -}
 import Effect.File
 
+-- TODO: for every use of unsafePerformIO, note why I believe it is
+-- safe.
+
 %lib C "curl"
 %include C "ffitest.h"
 %link C "ffitest.o"
 
 %include C "curl/curl.h"
+
+-- This should be safe because NULL should be a constant.
+null_pointer : Ptr
+null_pointer = unsafePerformIO $ foreign FFI_C "get_null_pointer" (IO Ptr)
 
 test_ffi_callback : String -> ()
 test_ffi_callback s = unsafePerformIO $ do
@@ -479,10 +486,8 @@ main = do
   -- TODO: better abstractions for this slist? Can we do it functionally
   -- using unsafePerformIO? and using a better pointer type rather than
   -- Ptr.
-  empty_slist <- foreign FFI_C "get_null_pointer" (IO Ptr)
 
-  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) empty_slist ("Authorization: " ++ "bearer " ++ access_token)
-
+  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   -- TODO: factor this for calling on any http request
   ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
