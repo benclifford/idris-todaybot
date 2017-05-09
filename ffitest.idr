@@ -192,6 +192,10 @@ fromJust (Just v) = v
 SizeT : Type
 SizeT = Int
 
+-- TODO: all this memory stuff should take account of CData
+-- which I discovered after implementing this. Specifically
+-- it looks like we can do garbage collection, if careful.
+
 alloc_bytes : SizeT -> IO Ptr
 alloc_bytes count = foreign FFI_C "alloc_bytes" (SizeT -> IO Ptr) count
 
@@ -397,6 +401,9 @@ get_access_token = do
 
   foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
 
+  -- QUESTION/DISCUSSION: what's the right/best way to get an
+  -- idris string out of this buffer? (there might be encoding
+  -- issues?)
   response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
 
   putStrLn "idris-side: buffer string is: "
