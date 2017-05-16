@@ -516,24 +516,8 @@ sure why this doesn't work...
 
   pure access_token
 
-
-partial main : IO ()
-main = do
-  putStrLn "idris ffi test start"
-
-  test_ffi
-
-  putStrLn $ "calling global init for curl"
-  -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
-  printLn ret
-  -- TODO: check ret == 0
-  putStrLn $ "called global init for curl"
-
-  access_token <- get_access_token
-
-  -- finally, we're logged in.
-
+get_hot_posts : String -> IO String
+get_hot_posts access_token = do
   -- now we can make calls to oauth.reddit.com using the access token
 
   -- getHotPosts using libcurl.
@@ -558,7 +542,7 @@ main = do
 
   ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=100"
+  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=1"
   -- TODO: check ret
 
   putStrLn "Performing easy session (2)"
@@ -590,6 +574,49 @@ main = do
 -- causing a problem?
 
   foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
+
+  response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
+
+  pure response_body
+
+partial main : IO ()
+main = do
+  putStrLn "idris ffi test start"
+
+  test_ffi
+
+  putStrLn $ "calling global init for curl"
+  -- TODO: send it proper init code not 3 (extract from lib...)
+  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
+  printLn ret
+  -- TODO: check ret == 0
+  putStrLn $ "called global init for curl"
+
+  access_token <- get_access_token
+
+  -- finally, we're logged in.
+  hot_posts <- get_hot_posts access_token
+
+  -- QUESTION/DISCUSSION: the string that is returned from here
+  -- is somehow invalid in so much as it causes a SIGSEGV when
+  -- either trying to print it with 'print' or parse it using
+  -- Config.JSON. So I guess my assumptions that I can just dump
+  -- what came back into an idris string is invalid.
+  -- Actually, valgrind (when I got it working) suggests it is
+  -- a stack overflow. Running valgrind with an 80mb (rather than
+  -- 8mb) stack makes the code appear to hang for a long time
+  -- (but maybe just processing...?)
+  -- It should be easy to change the size of the returned hot posts
+  -- JSON by asking reddit for fewer posts in the request URL. At
+  -- the time of this problem, it is 100 posts.
+
+  putStrLn "hot posts as idris string:"
+  print hot_posts
+
+  let hot_posts_as_json = Config.JSON.fromString hot_posts
+
+  putStrLn "hot posts as json:"
+  printLn hot_posts_as_json
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
