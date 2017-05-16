@@ -542,7 +542,7 @@ get_hot_posts access_token = do
 
   ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=1"
+  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=30"
   -- TODO: check ret
 
   putStrLn "Performing easy session (2)"
@@ -617,9 +617,14 @@ main = do
   -- into my local checkout of Config.JSON:  string escapes and
   -- null strings being the two things I needed to change, and now
   -- we can parse hot posts as long as we only get 1.
+  -- LATER:
+  -- informally the parser on a large (100k-ish) input is *way*
+  -- slower if there is a syntax error near the end that will
+  -- cause ultimate failure, compared to if there is a nice clean
+  -- successful parse. Might be interesting to benchmark that?
 
-  putStrLn "hot posts as idris string:"
-  print hot_posts
+  -- putStrLn "hot posts as idris string:"
+  -- print hot_posts
 
   let hot_posts_as_json = Config.JSON.fromString hot_posts
 
