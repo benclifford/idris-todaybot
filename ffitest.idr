@@ -602,6 +602,7 @@ main = do
   -- either trying to print it with 'print' or parse it using
   -- Config.JSON. So I guess my assumptions that I can just dump
   -- what came back into an idris string is invalid.
+  -- LATER:
   -- Actually, valgrind (when I got it working) suggests it is
   -- a stack overflow. Running valgrind with an 80mb (rather than
   -- 8mb) stack makes the code appear to hang for a long time
@@ -609,6 +610,13 @@ main = do
   -- It should be easy to change the size of the returned hot posts
   -- JSON by asking reddit for fewer posts in the request URL. At
   -- the time of this problem, it is 100 posts.
+  -- LATER:
+  -- so with a smaller count of posts (eg 1) the parser
+  -- instead was dying because Config.JSON master couldn't parse
+  -- a broad enough dialect of JSON. So I went and hacked that
+  -- into my local checkout of Config.JSON:  string escapes and
+  -- null strings being the two things I needed to change, and now
+  -- we can parse hot posts as long as we only get 1.
 
   putStrLn "hot posts as idris string:"
   print hot_posts
@@ -617,6 +625,8 @@ main = do
 
   putStrLn "hot posts as json:"
   printLn hot_posts_as_json
+
+
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
