@@ -700,7 +700,32 @@ When checking an application of function Prelude.Monad.>>=:
   putStrLn "maybe_hot_post_Listing = "
   printLn maybe_hot_post_Listing
 
-   
+  -- TODO: factor as maybeHead and then use monadic join?
+
+  {- The below gives a terrible error message, in so much
+     as the error occurs way up at the top of main.
+     QUESTION/DISCUSSION: committing to version control
+     for investigating later. I've encountered this 
+     error several times and I wonder if there's a better
+     way for me to deal with it / for it to be reported.
+     or for me to understand what's happening.
+
+  let first_post = do
+        l <- maybe_host_post_Listing
+        case l of
+          [] => Nothing
+          (x::xs) => pure x
+
++ idris -p effects -p config --total ffitest.idr -o i.out
+ffitest.idr:602:6:
+When checking right hand side of main with expected type
+        IO ()
+
+When checking an application of function Prelude.Monad.>>=:
+        Can't disambiguate since no name has a suitable type: 
+                Effects.>>=, Prelude.Monad.>>=
+
+  -}
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
