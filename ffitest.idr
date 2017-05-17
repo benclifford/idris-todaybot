@@ -2,7 +2,6 @@
 -- -p config
 import Config.YAML
 import Config.JSON
-
 -- -p effects
 -- QUESTION/DISCUSSION
 -- importing Effects appears to make code (even simple-ish
@@ -579,6 +578,26 @@ get_hot_posts access_token = do
 
   pure response_body
 
+-- given a JSON object, looks up the named key returning Nothing
+-- if it does not exist.
+-- for a json value that is not an object, indicate failure
+-- by Nothing.
+-- QUESTION/DISCUSSION: this might not be the right error
+-- handling: if I believe a key will be there (because I know
+-- reddit's schema) I perhaps want a more "serious" error report?
+getkey : String -> JsonValue -> Maybe JsonValue
+getkey key (JsonObject dict) = lookup key dict
+getkey key _ = Nothing
+
+
+-- should this be in std library?
+-- there's maybeToEither in there...
+-- although I don't particularly like removing the
+-- exception info here.
+eitherToMaybe : Either e v -> Maybe v
+eitherToMaybe (Left err) = Nothing
+eitherToMaybe (Right v) = Just v
+
 partial main : IO ()
 main = do
   putStrLn "idris ffi test start"
@@ -626,14 +645,65 @@ main = do
   -- putStrLn "hot posts as idris string:"
   -- print hot_posts
 
-  let hot_posts_as_json = Config.JSON.fromString hot_posts
+  let m_hot_posts_as_json = eitherToMaybe (Config.JSON.fromString hot_posts)
+
+  -- maybe this should be an exception effect rather than discarding
+  -- the error info?
 
   putStrLn "hot posts as json:"
-  printLn hot_posts_as_json
+  printLn m_hot_posts_as_json
 
+  -- so we have this JSON structure, but now what can we do
+  -- with it?
 
+  -- the two approaches I've seen in Haskell are: i) deserialise
+  -- into a specific data structure (eg a Post structure for a
+  -- reddit post) or pass the JSON data around and access it
+  -- by paths into the structure, eg with lenses.
+  -- In the main lsc-todaybot implementation, I'm using the
+  -- latter, with accessors like this:
+  -- postFlairCss = key "data" . key "link_flair_css_class" . _String
+
+  -- Most immediately I'd like to print out a list of the
+  -- post titles, without all the fluff.
+  -- so for each post, I want data/title as a string.
+
+  -- start with kind Listing, with descendent:
+  --   /data/children
+  -- and children is an [array] of more reddit objects,
+  -- with kind t3, and title /data/title
+
+  -- I'm having trouble here getting >>= to be resolved:
+  -- let maybe_hot_post_Listing = m_host_posts_as_json >>= (getkey "data")
+  -- main fails to typecheck with 
+{-
+When checking an application of function Prelude.Monad.>>=:
+        Can't disambiguate since no name has a suitable type: 
+                Effects.>>=, Prelude.Monad.>>=
+)
+-}
+--   let maybe_hot_post_Listing = m_host_posts_as_json >>= ?foo
+
+-- but this works? (or I made something work by fiddling with
+-- type signatures elsewhere?)
+
+  -- let maybe_hot_post_Listing = m_hot_posts_as_json >>= (getkey "foo")
+  let maybe_hot_post_Listing = do
+         i <- m_hot_posts_as_json
+         getkey "data" i
+
+  -- so hot_post_Listing should be a JSON array.
+  -- get that into a list and then if it has any entries,
+  -- print out the first one. (although actually I'll want to
+  -- do some action over *all* of them)
+
+  putStrLn "maybe_hot_post_Listing = "
+  printLn maybe_hot_post_Listing
+
+   
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
   putStrLn "idris ffi test end"
+
 
