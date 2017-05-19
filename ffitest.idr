@@ -794,6 +794,17 @@ Can't find implementation for Show (Maybe b)
   putStrLn "First hot post:"
   printLn p
 
+  -- now extract the heading from this:
+  -- in /data/
+
+  let posttitle = do
+        post <- p
+        postdata <- getkey "data" post
+        getkey "title" postdata
+
+  putStrLn "Post title:"
+  printLn posttitle
+
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
   putStrLn "idris ffi test end"
