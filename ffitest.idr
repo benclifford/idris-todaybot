@@ -598,6 +598,63 @@ eitherToMaybe : Either e v -> Maybe v
 eitherToMaybe (Left err) = Nothing
 eitherToMaybe (Right v) = Just v
 
+-- potentially this could return a List rather than a (Maybe . List)
+-- but I want to keep a distinction between calling arrayFromJSON
+-- on the wrong kind of JsonValue vs getting an empty array in the
+-- right kind of JsonValue.
+arrayFromJSON : JsonValue -> (Maybe . List) JsonValue
+arrayFromJSON (JsonArray a) = Just a
+arrayFromJSON v = Nothing
+
+{- QUESTION/DISCUSSION:
+arrayFromJSON : JsonValue -> Maybe [JsonValue]
+arrayFromJSON v = Nothing
+gives:
+ `-- ffitest.idr line 601 col 14:
+      When checking type of Main.arrayFromJSON:
+           When checking argument a to type constructor Prelude.Maybe.Maybe:
+                        Can't disambiguate since no name has a suitable type:
+                                             Effects.Env.::, Prelude.List.::, Prelude.Stream.::, D\
+                                             ata.Vect.::
+                                             
+
+where line 601, col 14 is the space before the : in the type signature
+
+LATER:
+This comes, I think, from [list] syntax not being recognised and
+List JsonValue being needed instead.
+
+This is an awkward error message...
+
+I guess what is happening is it is creating a list of one element
+(or attempting to) to pass into Maybe. Because [] notation is for
+list values not list types.
+
+-}
+
+
+-- is this in std library? should it be?
+-- (waffle: maybeHead is a natural transformation but
+-- not a monad homomorphism...)
+-- Goes alongside eitherToMaybe as a morphism and
+-- maybe should be called listToMaybe to line up
+-- with that?
+maybeHead : List a -> Maybe a
+maybeHead [] = Nothing
+maybeHead (x::xs) = Just x
+
+
+-- QUESTION/DISCUSSION:
+-- This got factored into its own function because I found
+-- that it was easier to diagnose type problems by having
+-- more explicit type signatures on functions (rather than
+-- letting them be inferred inside a big main and getting
+-- an error right at the start of main)
+get_first_hot_post : JsonValue -> Maybe JsonValue
+get_first_hot_post ps = do
+  array <- arrayFromJSON ps
+  maybeHead array
+
 partial main : IO ()
 main = do
   putStrLn "idris ffi test start"
@@ -690,8 +747,11 @@ When checking an application of function Prelude.Monad.>>=:
   -- let maybe_hot_post_Listing = m_hot_posts_as_json >>= (getkey "foo")
   let maybe_hot_post_Listing = do
          i <- m_hot_posts_as_json
-         getkey "data" i
-
+         i2 <- getkey "data" i
+         getkey "children" i2
+         -- rewrite the above using >>= as a single point free
+         -- sequence, not a do block?
+         
   -- so hot_post_Listing should be a JSON array.
   -- get that into a list and then if it has any entries,
   -- print out the first one. (although actually I'll want to
@@ -710,22 +770,29 @@ When checking an application of function Prelude.Monad.>>=:
      way for me to deal with it / for it to be reported.
      or for me to understand what's happening.
 
-  let first_post = do
-        l <- maybe_host_post_Listing
-        case l of
-          [] => Nothing
-          (x::xs) => pure x
+     LATER: looks like the reason was maybe_host_post_Listing
+     vs maybe_hot_post_Listing (a typo in hot) which manifests
+     as that weird bind error rather than a name not found
+     error
+-}
 
-+ idris -p effects -p config --total ffitest.idr -o i.out
-ffitest.idr:602:6:
-When checking right hand side of main with expected type
-        IO ()
+  {- QUESTION/DISCUSSION: why does this result in 
+Can't find implementation for Show (Maybe b)
+  (eg why can't we figure out what the filler type for the
+  maybe is?) and all sorts of other different errors, none
+  of which have led me to a solution so far.
+-}
+{-
+  let first_post : Maybe Nat
+      first_post = do
+        l <- maybe_hot_post_Listing
+        case 1 of x => return x
+-}
 
-When checking an application of function Prelude.Monad.>>=:
-        Can't disambiguate since no name has a suitable type: 
-                Effects.>>=, Prelude.Monad.>>=
+  let p = (maybe_hot_post_Listing >>= get_first_hot_post)
 
-  -}
+  putStrLn "First hot post:"
+  printLn p
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
