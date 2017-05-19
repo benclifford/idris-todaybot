@@ -802,8 +802,17 @@ Can't find implementation for Show (Maybe b)
         postdata <- getkey "data" post
         getkey "title" postdata
 
+  let postflair = do
+        post <- p
+        postdata <- getkey "data" post
+        text <- getkey "link_flair_text" postdata
+        css <- getkey "link_flair_css_class" postdata
+        pure (text,css)
+
   putStrLn "Post title:"
   printLn posttitle
+  putStrLn "Post flair:"
+  printLn postflair
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
