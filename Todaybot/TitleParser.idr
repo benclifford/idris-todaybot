@@ -2,6 +2,8 @@ module Todaybot.TitleParser
 
 import Data.String
 
+-- QUESTION/DISCUSSION:
+-- I just figured out where Lightyear comes from. Parsec. Ahaha.
 import Lightyear
 import Lightyear.Char
 import Lightyear.Strings

@@ -820,11 +820,6 @@ Can't find implementation for Show (Maybe b)
   putStrLn "Post date:"
   printLn postdate
 
-  -- now, we need a date parser to parse out the
-  -- date from the posttitle. The Haskell todaybot
-  -- has a parsec parser for this that hopefully
-  -- will port to lightyear easily. (and I just got
-  -- where the name lightyear comes from)
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
