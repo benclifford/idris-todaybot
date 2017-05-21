@@ -9,6 +9,9 @@ import Config.JSON
 -- https://github.com/benclifford/idris-hang-1
 import Effects
 
+import Todaybot.Morph
+import Todaybot.TitleParser
+
 -- QUESTION/FOR DISCUSSION:
 -- omitting this import of Effect.File gives an unexpected
 -- error message to do with type matching. Presumably it not
@@ -28,6 +31,7 @@ When checking argument env to function Effects.run:
                         [FILE ()]
 -}
 import Effect.File
+
 
 -- TODO: for every use of unsafePerformIO, note why I believe it is
 -- safe.
@@ -590,14 +594,6 @@ getkey key (JsonObject dict) = lookup key dict
 getkey key _ = Nothing
 
 
--- should this be in std library?
--- there's maybeToEither in there...
--- although I don't particularly like removing the
--- exception info here.
-eitherToMaybe : Either e v -> Maybe v
-eitherToMaybe (Left err) = Nothing
-eitherToMaybe (Right v) = Just v
-
 -- potentially this could return a List rather than a (Maybe . List)
 -- but I want to keep a distinction between calling arrayFromJSON
 -- on the wrong kind of JsonValue vs getting an empty array in the
@@ -605,6 +601,11 @@ eitherToMaybe (Right v) = Just v
 arrayFromJSON : JsonValue -> (Maybe . List) JsonValue
 arrayFromJSON (JsonArray a) = Just a
 arrayFromJSON v = Nothing
+
+stringFromJSON : JsonValue -> Maybe String
+stringFromJSON (JsonString s) = Just s
+stringFromJSON v = Nothing
+
 
 {- QUESTION/DISCUSSION:
 arrayFromJSON : JsonValue -> Maybe [JsonValue]
@@ -800,7 +801,8 @@ Can't find implementation for Show (Maybe b)
   let posttitle = do
         post <- p
         postdata <- getkey "data" post
-        getkey "title" postdata
+        js <- getkey "title" postdata
+        stringFromJSON js
 
   let postflair = do
         post <- p
@@ -813,6 +815,16 @@ Can't find implementation for Show (Maybe b)
   printLn posttitle
   putStrLn "Post flair:"
   printLn postflair
+
+  let postdate = posttitle >>= titleToDate
+  putStrLn "Post date:"
+  printLn postdate
+
+  -- now, we need a date parser to parse out the
+  -- date from the posttitle. The Haskell todaybot
+  -- has a parsec parser for this that hopefully
+  -- will port to lightyear easily. (and I just got
+  -- where the name lightyear comes from)
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
