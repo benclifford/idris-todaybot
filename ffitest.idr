@@ -9,7 +9,9 @@ import Config.JSON
 -- https://github.com/benclifford/idris-hang-1
 import Effects
 
+import Todaybot.Date
 import Todaybot.Morph
+import Todaybot.Ptr
 import Todaybot.TitleParser
 
 -- QUESTION/FOR DISCUSSION:
@@ -41,10 +43,6 @@ import Effect.File
 %link C "ffitest.o"
 
 %include C "curl/curl.h"
-
--- This should be safe because NULL should be a constant.
-null_pointer : Ptr
-null_pointer = unsafePerformIO $ foreign FFI_C "get_null_pointer" (IO Ptr)
 
 test_ffi_callback : String -> ()
 test_ffi_callback s = unsafePerformIO $ do
@@ -820,6 +818,32 @@ Can't find implementation for Show (Maybe b)
   putStrLn "Post date:"
   printLn postdate
 
+  -- next, what is the current date? (we don't need the time
+  -- of day, but we do need it to be accurate in the local
+  -- timezone so that we use London time rather than eg UTC)
+  -- In the Haskell version, there is 'getCurrentLocalTime' which
+  -- uses both getCurrentTime (giving UTC) and 'getCurrentTimeZone'
+  -- which returns the current TZ definition; and then uses
+  -- utcToLocalTime to combine the results of those two IO actions.
+
+  -- what do glibc calls for time actually look like? because I'll
+  -- probably be using those.
+  
+  -- 'struct tm' is the broken down time structure to use
+  -- localtime_r is a thread safe / memory safe function which
+  -- can give a 'struct tm' given a simple time.
+  
+  -- use 'time' to get a time_t value. (or we can write it into
+  -- a buffer if using a time_t raw value is awkward?)
+
+  -- then once we have our 'struct tm' we should have a way to
+  -- convert it into the same Date as used in the time parser
+  -- so that 'Eq' can be used.
+
+  now <- getTime
+  
+  putStrLn "Current time, as TimeT:"
+  printLn now
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
