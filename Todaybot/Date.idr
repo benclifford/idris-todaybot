@@ -18,6 +18,19 @@ public export record Date where
   month : Integer -- could be a Fin 12
   day : Integer -- if we were really craaazy this could be a dependent type depending on month, and on year for leap years. Possibly a massive hassle and nothing useful in the todaybot case coming from that typing? QUESTION/DISCUSSION
 
+-- QUESTION/DISCUSSION: what is the best way to implement this
+-- interface? In Haskell land it would be automatically derivable
+-- and Generics would also be able to implement it.
+-- There is some discussion of doing this with the elaborator
+-- but I haven't dug into that - probably I should.
+-- Manually feels so ickily error prone, even for a three field
+-- type.
+public export Eq Date where
+ l == r = (year l == year r)
+       && (month l == month r)
+       && (day l == day r)
+
+
 public export Show Date where
   show date = "Todaybot date: " ++ (show . year) date
            ++ "/" ++ (show . month) date
