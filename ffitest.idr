@@ -35,6 +35,11 @@ When checking argument env to function Effects.run:
 import Effect.File
 
 
+-- TODO: put this in the config file
+-- and thread that config around suitably.
+subredditName : String
+subredditName = "LondonSocialClub"
+
 -- TODO: for every use of unsafePerformIO, note why I believe it is
 -- safe.
 
@@ -494,7 +499,7 @@ get_hot_posts access_token = do
 
   ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionUrl "https://oauth.reddit.com/r/LondonSocialClub/hot?limit=30"
+  ret <- curlEasySetopt easy_handle2 CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
   -- TODO: check ret
 
   putStrLn "Performing easy session (2)"
