@@ -10,7 +10,7 @@ idris -p effects \
       Todaybot/TitleParser.idr \
       Todaybot/Morph.idr \
       Todaybot/Date.idr \
-      -o i.out 
+      -o todaybot
 
 # \
 #      --V2 \
