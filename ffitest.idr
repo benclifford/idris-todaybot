@@ -659,26 +659,29 @@ forceFlair access_token post new_flair new_css_class = do
 -- more explicit type signatures on functions (rather than
 -- letting them be inferred inside a big main and getting
 -- an error right at the start of main)
-get_first_hot_post : JsonValue -> Maybe JsonValue
-get_first_hot_post ps = do
-  array <- arrayFromJSON ps
-  maybeHead array
+
+-- TODO: This way of writing nested unwrapping of maybes is ick. Write
+-- it better.
+get_all_hot_posts : Maybe JsonValue -> List JsonValue
+get_all_hot_posts psm = case psm of
+  Nothing => []
+  Just ps => case arrayFromJSON ps of
+    Just l => l
+    Nothing => []
 
 -- TODO: access_token should be in some kind of environment.
-partial processPost : String -> Maybe JsonValue -> IO ()
-processPost access_token p = do
+partial processPost : String -> JsonValue -> IO ()
+processPost access_token post = do
 
   -- now extract the heading from this:
   -- in /data/
 
   let posttitle = do
-        post <- p
         postdata <- getkey "data" post
         js <- getkey "title" postdata
         stringFromJSON js
 
   let postflair = do
-        post <- p
         postdata <- getkey "data" post
         text <- (getkey "link_flair_text" postdata) >>= stringFromJSON
         css <- (getkey "link_flair_css_class" postdata) >>= stringFromJSON
@@ -748,9 +751,7 @@ processPost access_token p = do
   if (Just nowDate == postdate && postflair == Nothing) 
     then do
       putStrLn "Rule TODAY firing: Set today flair"
-      case p of
-        Just post => forceFlair access_token post "Today" "today"
-        Nothing => ?impossible_flair_but_no_post_TODAY -- TODO: represent this better...
+      forceFlair access_token post "Today" "today"
     else putStrLn "Rule TODAY not firing"
 
 
@@ -768,9 +769,7 @@ processPost access_token p = do
   if inpast == Just True && postflair == Just ("Today", "today")
     then do
       putStrLn "Rule PAST firing"
-      case p of
-        Just post => forceFlair access_token post "" "" 
-        Nothing => ?impossible_flair_but_not_post_PAST
+      forceFlair access_token post "" "" 
     else putStrLn "Rule PAST not firing"
 
   -- there is also a non-date transition:
@@ -919,12 +918,9 @@ Can't find implementation for Show (Maybe b)
         case 1 of x => return x
 -}
 
-  let p = (maybe_hot_post_Listing >>= get_first_hot_post)
+  let ps = get_all_hot_posts maybe_hot_post_Listing
 
-  putStrLn "First hot post:"
-  printLn p
-
-  processPost access_token p
+  for ps (processPost access_token)
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
