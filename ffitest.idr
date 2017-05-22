@@ -751,7 +751,6 @@ processPost access_token p = do
       case p of
         Just post => forceFlair access_token post "Today" "today"
         Nothing => ?impossible_flair_but_no_post_TODAY -- TODO: represent this better...
-      -- TODO: set flair on this post. what do we need to know?
     else putStrLn "Rule TODAY not firing"
 
 
