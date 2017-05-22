@@ -664,6 +664,107 @@ get_first_hot_post ps = do
   array <- arrayFromJSON ps
   maybeHead array
 
+-- TODO: access_token should be in some kind of environment.
+partial processPost : String -> Maybe JsonValue -> IO ()
+processPost access_token p = do
+
+  -- now extract the heading from this:
+  -- in /data/
+
+  let posttitle = do
+        post <- p
+        postdata <- getkey "data" post
+        js <- getkey "title" postdata
+        stringFromJSON js
+
+  let postflair = do
+        post <- p
+        postdata <- getkey "data" post
+        text <- (getkey "link_flair_text" postdata) >>= stringFromJSON
+        css <- (getkey "link_flair_css_class" postdata) >>= stringFromJSON
+
+        -- QUESTION/DISCUSSION: the above notation would look nicer
+        -- with =<< I think (keeping data flowing R->L)
+
+        -- QUESTION/DISCUSSION: I hit that annoying error reporting
+        -- style here again, where I had miscapitalised stringFromJSON
+        -- and instead of a "name not found" error I got that
+        -- idris couldn't pick a >>= from the top line of main. Is
+        -- idris trying to use the choice of >>= to decide what to
+        -- suggest/lookup stringFromJson?
+        
+        pure (text,css)
+
+  putStrLn "Post title:"
+  printLn posttitle
+  putStrLn "Post flair:"
+  printLn postflair
+
+  let postdate = posttitle >>= titleToDate
+  putStrLn "Post date:"
+  printLn postdate
+
+  -- next, what is the current date? (we don't need the time
+  -- of day, but we do need it to be accurate in the local
+  -- timezone so that we use London time rather than eg UTC)
+  -- In the Haskell version, there is 'getCurrentLocalTime' which
+  -- uses both getCurrentTime (giving UTC) and 'getCurrentTimeZone'
+  -- which returns the current TZ definition; and then uses
+  -- utcToLocalTime to combine the results of those two IO actions.
+
+  -- what do glibc calls for time actually look like? because I'll
+  -- probably be using those.
+  
+  -- 'struct tm' is the broken down time structure to use
+  -- localtime_r is a thread safe / memory safe function which
+  -- can give a 'struct tm' given a simple time.
+  
+  -- use 'time' to get a time_t value. (or we can write it into
+  -- a buffer if using a time_t raw value is awkward?)
+
+  -- then once we have our 'struct tm' we should have a way to
+  -- convert it into the same Date as used in the time parser
+  -- so that 'Eq' can be used.
+
+  now <- getTime
+  
+  putStrLn "Current time, as TimeT:"
+  printLn now
+
+  nowDate <- timeTToDate now
+  putStrLn "Current time, as Date:"
+  printLn nowDate
+
+  -- so now we have flair, and dates. we can do some state transition
+  -- rules thing to decide what posts get changed.
+
+  -- the rules are:
+
+  -- the basic time based transition rules:
+  -- is this post today, with blank flair? => set flair to today
+  -- is this post in past, with 'today' flair? => set flair to archived
+
+  -- today but blank flair?
+  if (Just nowDate == postdate && postflair == Nothing) 
+    then do
+      putStrLn "Rule TODAY firing: Set today flair"
+      case p of
+        Just post => forceFlair access_token post "Today" "today"
+        Nothing => ?impossible_flair_but_no_post -- TODO: represent this better...
+      -- TODO: set flair on this post. what do we need to know?
+    else putStrLn "Rule TODAY not firing"
+
+  -- there is also a non-date transition:
+  -- is this an interest check? (actually, this is distinct from
+  -- dated post behaviour...) - If flair is blank, set flair to interest
+  -- deal with that later though
+
+  -- I should probably switch to testing with r/benclifford at this
+  -- point because soon I want to test actually changing flair on
+  -- posts and that shouldn't happen on r/LondonSocialClub
+
+
+
 partial main : IO ()
 main = do
   putStrLn "idris ffi test start"
@@ -803,101 +904,7 @@ Can't find implementation for Show (Maybe b)
   putStrLn "First hot post:"
   printLn p
 
-  -- now extract the heading from this:
-  -- in /data/
-
-  let posttitle = do
-        post <- p
-        postdata <- getkey "data" post
-        js <- getkey "title" postdata
-        stringFromJSON js
-
-  let postflair = do
-        post <- p
-        postdata <- getkey "data" post
-        text <- (getkey "link_flair_text" postdata) >>= stringFromJSON
-        css <- (getkey "link_flair_css_class" postdata) >>= stringFromJSON
-
-        -- QUESTION/DISCUSSION: the above notation would look nicer
-        -- with =<< I think (keeping data flowing R->L)
-
-        -- QUESTION/DISCUSSION: I hit that annoying error reporting
-        -- style here again, where I had miscapitalised stringFromJSON
-        -- and instead of a "name not found" error I got that
-        -- idris couldn't pick a >>= from the top line of main. Is
-        -- idris trying to use the choice of >>= to decide what to
-        -- suggest/lookup stringFromJson?
-        
-        pure (text,css)
-
-  putStrLn "Post title:"
-  printLn posttitle
-  putStrLn "Post flair:"
-  printLn postflair
-
-  let postdate = posttitle >>= titleToDate
-  putStrLn "Post date:"
-  printLn postdate
-
-  -- next, what is the current date? (we don't need the time
-  -- of day, but we do need it to be accurate in the local
-  -- timezone so that we use London time rather than eg UTC)
-  -- In the Haskell version, there is 'getCurrentLocalTime' which
-  -- uses both getCurrentTime (giving UTC) and 'getCurrentTimeZone'
-  -- which returns the current TZ definition; and then uses
-  -- utcToLocalTime to combine the results of those two IO actions.
-
-  -- what do glibc calls for time actually look like? because I'll
-  -- probably be using those.
-  
-  -- 'struct tm' is the broken down time structure to use
-  -- localtime_r is a thread safe / memory safe function which
-  -- can give a 'struct tm' given a simple time.
-  
-  -- use 'time' to get a time_t value. (or we can write it into
-  -- a buffer if using a time_t raw value is awkward?)
-
-  -- then once we have our 'struct tm' we should have a way to
-  -- convert it into the same Date as used in the time parser
-  -- so that 'Eq' can be used.
-
-  now <- getTime
-  
-  putStrLn "Current time, as TimeT:"
-  printLn now
-
-  nowDate <- timeTToDate now
-  putStrLn "Current time, as Date:"
-  printLn nowDate
-
-  -- so now we have flair, and dates. we can do some state transition
-  -- rules thing to decide what posts get changed.
-
-  -- the rules are:
-
-  -- the basic time based transition rules:
-  -- is this post today, with blank flair? => set flair to today
-  -- is this post in past, with 'today' flair? => set flair to archived
-
-  -- today but blank flair?
-  if (Just nowDate == postdate && postflair == Nothing) 
-    then do
-      putStrLn "Rule TODAY firing: Set today flair"
-      case p of
-        Just post => forceFlair access_token post "Today" "today"
-        Nothing => ?impossible_flair_but_no_post -- TODO: represent this better...
-      -- TODO: set flair on this post. what do we need to know?
-    else putStrLn "Rule TODAY not firing"
-
-  -- there is also a non-date transition:
-  -- is this an interest check? (actually, this is distinct from
-  -- dated post behaviour...) - If flair is blank, set flair to interest
-  -- deal with that later though
-
-  -- I should probably switch to testing with r/benclifford at this
-  -- point because soon I want to test actually changing flair on
-  -- posts and that shouldn't happen on r/LondonSocialClub
-
+  processPost access_token p
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
