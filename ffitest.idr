@@ -38,7 +38,8 @@ import Effect.File
 -- TODO: put this in the config file
 -- and thread that config around suitably.
 subredditName : String
-subredditName = "LondonSocialClub"
+subredditName = "todaybot_test"
+-- subredditName = "LondonSocialClub"
 
 -- TODO: for every use of unsafePerformIO, note why I believe it is
 -- safe.
@@ -176,6 +177,14 @@ outer h opt param = case opt of
 -}
 -- === end setopt type debugging
 
+-- QUESTION/DISCUSSION: compare with the xxxToJSON functions
+-- that I have implemented elsewhere. YAML was (I think?) supposed
+-- to be treatable as JSON so from that direction, this should
+-- perhaps look like something that does yaml->json values (or the
+-- yaml parser returns JSON) and then we extract from JSON data
+-- types.
+--
+-- Also the naming is a bit ugly for something globally exposed.
 partial uns : YAMLNode -> String
 uns (YAMLString s) = s
 uns (YAMLScalar s) = s
@@ -196,7 +205,8 @@ shred_config config =
          printLn configError
          pure []
 
-
+-- QUESTION/DISCUSSION: Replace uses of this by binding
+-- inside Maybe instead of extracting.
 partial fromJust : Maybe a -> a
 fromJust (Just v) = v
 
@@ -598,6 +608,50 @@ maybeHead : List a -> Maybe a
 maybeHead [] = Nothing
 maybeHead (x::xs) = Just x
 
+-- partial due to 'fromJust'
+partial forceFlair : String -> JsonValue -> String -> String -> IO ()
+forceFlair access_token post new_flair new_css_class = do
+
+  let fullname = fromJust $ do  
+    kind <- (getkey "kind" post) >>= stringFromJSON
+    dat <- getkey "data" post
+    ident <- (getkey "id" dat) >>= stringFromJSON
+    pure (kind ++ "_" ++ ident)
+    -- QUESTION/DISCUSSION:
+    -- if I use 'return' here, the deprecation warning for it
+    -- is emitted twice.
+
+  -- QUESTION/DISCUSSION: does curl connection sharing only
+  -- happen on the same handle? if so it would be advantageous
+  -- to share the handle for flair setting with the handle used
+  -- for retrieving the post list.
+  easy_handle <- foreign FFI_C "curl_easy_init" (IO (Ptr))
+
+  -- TODO: all these rets need testing.
+
+  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
+
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+
+
+  ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
+
+  ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+
+  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+
+  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  content_buf_ptr <- alloc_bytes 16
+  poke_ptr content_buf_ptr null_pointer
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+
+  ret <- foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) easy_handle
+
+  putStrLn "End of forceFlair"
+
+
 
 -- QUESTION/DISCUSSION:
 -- This got factored into its own function because I found
@@ -761,8 +815,19 @@ Can't find implementation for Show (Maybe b)
   let postflair = do
         post <- p
         postdata <- getkey "data" post
-        text <- getkey "link_flair_text" postdata
-        css <- getkey "link_flair_css_class" postdata
+        text <- (getkey "link_flair_text" postdata) >>= stringFromJSON
+        css <- (getkey "link_flair_css_class" postdata) >>= stringFromJSON
+
+        -- QUESTION/DISCUSSION: the above notation would look nicer
+        -- with =<< I think (keeping data flowing R->L)
+
+        -- QUESTION/DISCUSSION: I hit that annoying error reporting
+        -- style here again, where I had miscapitalised stringFromJSON
+        -- and instead of a "name not found" error I got that
+        -- idris couldn't pick a >>= from the top line of main. Is
+        -- idris trying to use the choice of >>= to decide what to
+        -- suggest/lookup stringFromJson?
+        
         pure (text,css)
 
   putStrLn "Post title:"
@@ -804,6 +869,35 @@ Can't find implementation for Show (Maybe b)
   nowDate <- timeTToDate now
   putStrLn "Current time, as Date:"
   printLn nowDate
+
+  -- so now we have flair, and dates. we can do some state transition
+  -- rules thing to decide what posts get changed.
+
+  -- the rules are:
+
+  -- the basic time based transition rules:
+  -- is this post today, with blank flair? => set flair to today
+  -- is this post in past, with 'today' flair? => set flair to archived
+
+  -- today but blank flair?
+  if (Just nowDate == postdate && postflair == Nothing) 
+    then do
+      putStrLn "Rule TODAY firing: Set today flair"
+      case p of
+        Just post => forceFlair access_token post "Today" "today"
+        Nothing => ?impossible_flair_but_no_post -- TODO: represent this better...
+      -- TODO: set flair on this post. what do we need to know?
+    else putStrLn "Rule TODAY not firing"
+
+  -- there is also a non-date transition:
+  -- is this an interest check? (actually, this is distinct from
+  -- dated post behaviour...) - If flair is blank, set flair to interest
+  -- deal with that later though
+
+  -- I should probably switch to testing with r/benclifford at this
+  -- point because soon I want to test actually changing flair on
+  -- posts and that shouldn't happen on r/LondonSocialClub
+
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
