@@ -8,24 +8,8 @@ import Lightyear
 import Lightyear.Char
 import Lightyear.Strings
 
+import Todaybot.Date
 import Todaybot.Morph
-
--- QUESTION/DISCUSSION: choice in way to represent date is because
--- mostly I want to compare for equality rather than
--- doing other calendar operations, and will
--- in the post title space at least, always be getting
--- stuff as separate year, month and day.
-
-public export record Date where
-  constructor MkDate
-  year : Integer
-  month : Integer -- could be a Fin 12
-  day : Integer -- if we were really craaazy this could be a dependent type depending on month, and on year for leap years. Possibly a massive hassle and nothing useful in the todaybot case coming from that typing? QUESTION/DISCUSSION
-
-public export Show Date where
-  show date = "Todaybot date: " ++ (show . year) date
-           ++ "/" ++ (show . month) date
-           ++ "/" ++ (show . day) date
 
 -- this parser is based on the one used in Haskell lsc-todaybot
 

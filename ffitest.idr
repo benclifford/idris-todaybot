@@ -195,55 +195,6 @@ shred_config config =
 partial fromJust : Maybe a -> a
 fromJust (Just v) = v
 
--- TODO: this should be captured at compile time
--- eg using type providers as in example
-SizeT : Type
-SizeT = Int
-
--- TODO: all this memory stuff should take account of CData
--- which I discovered after implementing this. Specifically
--- it looks like we can do garbage collection, if careful.
-
--- TODO: memory allocation should probably do some validity checking
--- and have some appropriate exception-effect or some such on
--- failure, rather than returning NULL?
-
-alloc_bytes : SizeT -> IO Ptr
-alloc_bytes count = foreign FFI_C "alloc_bytes" (SizeT -> IO Ptr) count
-
-realloc_bytes : Ptr -> SizeT -> IO Ptr
-realloc_bytes old count = foreign FFI_C "realloc" (Ptr -> SizeT -> IO Ptr) old count
-
-memcpy : Ptr -> Ptr -> SizeT -> IO Ptr
-memcpy dest src count = foreign FFI_C "memcpy" (Ptr -> Ptr -> SizeT -> IO Ptr) dest src count
-
--- TODO: should be a byte not an int
-poke_byte : (base : Ptr) -> (offset : Int) -> (value : Int) -> IO ()
-poke_byte base offset value = foreign FFI_C "poke_byte" (Ptr -> Int -> Int -> IO ()) base offset value
-
--- TODO: inconsistent offset UI wrt poke_byte
-poke_ptr : (base : Ptr) -> (value : Ptr) -> IO ()
-poke_ptr base value = foreign FFI_C "poke_ptr" (Ptr -> Ptr -> IO ()) base value
-
-peek_ptr : (base : Ptr) -> IO Ptr
-peek_ptr base = foreign FFI_C "peek_ptr" (Ptr -> IO Ptr) base
-
--- QUESTION/DISCUSSION: Really I would like some kind of
--- Eq on pointers. But I think maybe I don't have those?
-
-is_null : Ptr -> Bool
-is_null ptr = ptr == null_pointer
-
-{-
-is_null : Ptr -> Bool
-is_null ptr = do
-  v <- foreign FFI_C "is_null" (Ptr -> IO Int) ptr
-  case v of
-    501 => True
-    502 => False
--}
-
-
 write_callback_body : Ptr -> Int -> Int -> Ptr -> Int
 write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
   putStrLn "In write_callback_body"
@@ -844,6 +795,10 @@ Can't find implementation for Show (Maybe b)
   
   putStrLn "Current time, as TimeT:"
   printLn now
+
+  nowDate <- timeTToDate now
+  putStrLn "Current time, as Date:"
+  printLn nowDate
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
