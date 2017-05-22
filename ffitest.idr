@@ -784,19 +784,8 @@ processPost access_token post = do
   pure ()
 
 
-partial main : IO ()
-main = do
-  putStrLn "idris ffi test start"
-
-  test_ffi
-
-  putStrLn $ "calling global init for curl"
-  -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
-  printLn ret
-  -- TODO: check ret == 0
-  putStrLn $ "called global init for curl"
-
+partial oneshotMain : IO ()
+oneshotMain = do
   access_token <- get_access_token
 
   -- finally, we're logged in.
@@ -921,6 +910,38 @@ Can't find implementation for Show (Maybe b)
   let ps = get_all_hot_posts maybe_hot_post_Listing
 
   for ps (processPost access_token)
+
+  pure ()
+
+partial forever : IO () -> IO ()
+forever act = do
+  act
+  forever act
+
+sleepAWhile : IO ()
+sleepAWhile = do
+  putStrLn "sleep starting"
+  foreign FFI_C "sleep" (Int -> IO ()) (7 * 60) -- delay measured in seconds
+  -- QUESTION/DISCUSSION: some of this FFI is crazy easy.
+  putStrLn "sleep done"
+
+partial main : IO ()
+main = do
+  putStrLn "idris ffi test start"
+
+  test_ffi
+
+  putStrLn $ "calling global init for curl"
+  -- TODO: send it proper init code not 3 (extract from lib...)
+  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
+  printLn ret
+  -- TODO: check ret == 0
+  putStrLn $ "called global init for curl"
+
+  -- TODO: do this lots with a delay
+  forever $ do
+    oneshotMain
+    sleepAWhile
 
   putStrLn "Shutting down libcurl"
   ret <- foreign FFI_C "curl_global_cleanup" (IO ())
