@@ -38,8 +38,8 @@ import Effect.File
 -- TODO: put this in the config file
 -- and thread that config around suitably.
 subredditName : String
-subredditName = "todaybot_test"
--- subredditName = "LondonSocialClub"
+-- subredditName = "todaybot_test"
+subredditName = "LondonSocialClub"
 
 -- TODO: for every use of unsafePerformIO, note why I believe it is
 -- safe.
@@ -769,7 +769,7 @@ processPost access_token post = do
   if inpast == Just True && postflair == Just ("Today", "today")
     then do
       putStrLn "Rule PAST firing"
-      forceFlair access_token post "" "" 
+      forceFlair access_token post "Archived" "archived" 
     else putStrLn "Rule PAST not firing"
 
   -- there is also a non-date transition:
