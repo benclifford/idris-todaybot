@@ -30,6 +30,16 @@ public export Eq Date where
        && (month l == month r)
        && (day l == day r)
 
+-- QUESTION/DISCUSSION:
+-- compareBy and use of thenCompare can probably be implemented
+-- as nice function combinators, haskell style...
+public export compareBy : Ord b => (a -> b) -> a -> a -> Ordering
+compareBy f l r = compare (f l) (f r)
+
+public export Ord Date where
+  compare l r = (thenCompare (compareBy year l r) (thenCompare (compareBy month l r) (compareBy day l r)))
+-- QUESTION/DISCUSSION: infix notation for thenCompare? `infix`
+-- haskell notation didn't seem to work
 
 public export Show Date where
   show date = "Todaybot date: " ++ (show . year) date

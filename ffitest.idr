@@ -750,9 +750,29 @@ processPost access_token p = do
       putStrLn "Rule TODAY firing: Set today flair"
       case p of
         Just post => forceFlair access_token post "Today" "today"
-        Nothing => ?impossible_flair_but_no_post -- TODO: represent this better...
+        Nothing => ?impossible_flair_but_no_post_TODAY -- TODO: represent this better...
       -- TODO: set flair on this post. what do we need to know?
     else putStrLn "Rule TODAY not firing"
+
+
+  -- in the past but (still) has today flair?
+  let inpast = do
+        d <- postdate
+        pure (d < nowDate)
+
+-- QUESTION/DISCUSSION: ^
+-- when Date doesn't have an ordering instance, then the
+-- frustrating top level >>= disambiguation error appears
+-- (and goes away if 'pure (d < nowDate)' is replaced with
+-- 'pure False'.
+
+  if inpast == Just True && postflair == Just ("Today", "today")
+    then do
+      putStrLn "Rule PAST firing"
+      case p of
+        Just post => forceFlair access_token post "" "" 
+        Nothing => ?impossible_flair_but_not_post_PAST
+    else putStrLn "Rule PAST not firing"
 
   -- there is also a non-date transition:
   -- is this an interest check? (actually, this is distinct from
@@ -763,6 +783,7 @@ processPost access_token p = do
   -- point because soon I want to test actually changing flair on
   -- posts and that shouldn't happen on r/LondonSocialClub
 
+  pure ()
 
 
 partial main : IO ()
