@@ -435,6 +435,17 @@ get_access_token = do
   -- QUESTION/DISCUSSION: what's the right/best way to get an
   -- idris string out of this buffer? (there might be encoding
   -- issues?)
+
+  -- according to a question I (bxc) asked about releasing memory
+  -- on #idris:
+{-
+12:04 < Melvar> bxc: It copies the string, because a C string is mutable 
+                and could change with the next foreign call, but an Idris 
+                string is immutable.
+12:06 < bxc> OK. So (assuming the C code doesn't want to make further use 
+             of it) it should be ok for me to free() it right after.
+-}
+
   response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
 
   putStrLn "idris-side: buffer string is: "
