@@ -938,7 +938,6 @@ main = do
   -- TODO: check ret == 0
   putStrLn $ "called global init for curl"
 
-  -- TODO: do this lots with a delay
   forever $ do
     oneshotMain
     sleepAWhile
