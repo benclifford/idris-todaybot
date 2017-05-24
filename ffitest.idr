@@ -159,7 +159,7 @@ get_access_token = do
   -- now init an easy session, giving an easy handle.
 
   putStrLn "Initialising easy session"
-  easy_handle <- foreign FFI_C "curl_easy_init" (IO (Ptr))
+  easy_handle <- curlEasyInit
   -- TODO: check easy_handle for non-null
 
   ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
@@ -216,7 +216,7 @@ get_access_token = do
 
   putStrLn "Performing easy session"
 
-  ret <- foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) easy_handle
+  ret <- curlEasyPerform easy_handle
   -- TODO: assert ret == 0//CURLE_OK
 
   putStrLn "easy_perform return code:"
@@ -299,13 +299,13 @@ get_hot_posts access_token = do
 
   -- getHotPosts using libcurl.
 
-  easy_handle2 <- foreign FFI_C "curl_easy_init" (IO (Ptr))
+  easy_handle2 <- curlEasyInit
 
   -- TODO: better abstractions for this slist? Can we do it functionally
   -- using unsafePerformIO? and using a better pointer type rather than
   -- Ptr.
 
-  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+  slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   -- TODO: factor this for calling on any http request
   ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
@@ -324,7 +324,7 @@ get_hot_posts access_token = do
 
   putStrLn "Performing easy session (2)"
 
-  ret <- foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) easy_handle2
+  ret <- curlEasyPerform easy_handle2
   -- TODO: assert ret == 0//CURLE_OK
 
   putStrLn "easy_perform return code:"
@@ -435,7 +435,7 @@ forceFlair access_token post new_flair new_css_class = do
   -- happen on the same handle? if so it would be advantageous
   -- to share the handle for flair setting with the handle used
   -- for retrieving the post list.
-  easy_handle <- foreign FFI_C "curl_easy_init" (IO (Ptr))
+  easy_handle <- curlEasyInit
 
   -- TODO: all these rets need testing.
 
@@ -448,7 +448,7 @@ forceFlair access_token post new_flair new_css_class = do
 
   ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
 
-  slist <- foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+  slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
 
@@ -457,7 +457,7 @@ forceFlair access_token post new_flair new_css_class = do
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
 
-  ret <- foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) easy_handle
+  ret <- curlEasyPerform easy_handle
 
   putStrLn "End of forceFlair"
 
@@ -741,7 +741,7 @@ main = do
 
   putStrLn $ "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- foreign FFI_C "curl_global_init" (Int -> IO Int) 3
+  ret <- curlGlobalInit
   printLn ret
   -- TODO: check ret == 0
   putStrLn $ "called global init for curl"
@@ -751,7 +751,7 @@ main = do
     sleepAWhile
 
   putStrLn "Shutting down libcurl"
-  ret <- foreign FFI_C "curl_global_cleanup" (IO ())
+  ret <- curlGlobalCleanup
   putStrLn "idris ffi test end"
 
 

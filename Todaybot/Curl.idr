@@ -173,3 +173,18 @@ write_callback = unsafePerformIO $
   foreign FFI_C "%wrapper" (CFnPtr (Ptr -> Int -> Int -> Ptr -> Int) -> IO Ptr) (MkCFnPtr write_callback_body)
 
 
+curlEasyInit : IO Ptr
+curlEasyInit = foreign FFI_C "curl_easy_init" (IO (Ptr))
+
+curlGlobalInit : IO Int
+curlGlobalInit = foreign FFI_C "curl_global_init" (Int -> IO Int) 3
+
+curlGlobalCleanup : IO ()
+curlGlobalCleanup = foreign FFI_C "curl_global_cleanup" (IO ())
+
+curlEasyPerform : Ptr -> IO Int
+curlEasyPerform handle = foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) handle
+
+curlSListAppend : Ptr -> String -> IO Ptr
+curlSListAppend list str = foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) list str
+
