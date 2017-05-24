@@ -48,30 +48,6 @@ subredditName = "LondonSocialClub"
 %include C "ffitest.h"
 %link C "ffitest.o"
 
--- === debugging dependent types of setopt
-{-
-data A : Type where
-  A1 : A
-  A2 : A
-
-f : A -> Type
-f A1 = String
-f A2 = Int
-
-inner : EasyHandle -> A -> String -> Int
-inner g opt str = 100
-
-inner2 : EasyHandle -> A -> Int -> Int
-inner2 h opt val = 101
-
-outer : EasyHandle -> (o : A) -> f o -> Int
-outer h opt param = case opt of
-  A1 => inner h opt param
-  A2 => inner2 h opt param
-
--}
--- === end setopt type debugging
-
 -- QUESTION/DISCUSSION: compare with the xxxToJSON functions
 -- that I have implemented elsewhere. YAML was (I think?) supposed
 -- to be treatable as JSON so from that direction, this should
