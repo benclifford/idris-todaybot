@@ -707,6 +707,19 @@ Can't find implementation for Show (Maybe b)
 
   pure ()
 
+-- QUESTION/DISCUSSION
+-- implementing: forever act = act *> forever act
+-- (which would work in Haskell) causes a segfault here
+-- because it tries to construct the entire IO action
+-- (i.e. unrolling an infinite loop). Use of >>= does not
+-- construct the second IO action until the result of the
+-- first IO action is known, in order to pass that value
+-- into the constructing function.
+-- This is a strictness/laziness issue that I wasn't
+-- expecting - maybe it's of interest when thinking about
+-- Haskell's ApplicativeDo notation too, because different
+-- equivalences apply here.
+
 partial forever : IO () -> IO ()
 forever act = do
   act
