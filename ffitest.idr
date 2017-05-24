@@ -76,11 +76,6 @@ shred_config config =
          printLn configError
          pure []
 
--- QUESTION/DISCUSSION: Replace uses of this by binding
--- inside Maybe instead of extracting.
-partial fromJust : Maybe a -> a
-fromJust (Just v) = v
-
 partial get_access_token : IO String
 get_access_token = do
 
@@ -406,17 +401,6 @@ I guess what is happening is it is creating a list of one element
 list values not list types.
 
 -}
-
-
--- is this in std library? should it be?
--- (waffle: maybeHead is a natural transformation but
--- not a monad homomorphism...)
--- Goes alongside eitherToMaybe as a morphism and
--- maybe should be called listToMaybe to line up
--- with that?
-maybeHead : List a -> Maybe a
-maybeHead [] = Nothing
-maybeHead (x::xs) = Just x
 
 -- partial due to 'fromJust'
 partial forceFlair : String -> JsonValue -> String -> String -> IO ()
