@@ -752,3 +752,23 @@ main = do
   putStrLn "idris ffi test end"
 
 
+-- QUESTION/DISCUSSION
+-- valgrind seems to work relatively well (better than I'd expected)
+-- when debugging memory use with C bindings. I wonder what could
+-- be done to make this kind of trace look better?
+-- $ valgrind --leak-check=full ./todaybot 
+-- Really I'd like .idr file line numbers on that idris code
+-- (not C intermediate representation source lines)
+{-
+==10505== 14,437,220 (384 direct, 14,436,836 indirect) bytes in 1 blocks are definitely lost in loss record 254 of 254
+==10505==    at 0x4C2FB55: calloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==10505==    by 0x530A23F: Curl_multi_handle (in /usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.4.4.0)
+==10505==    by 0x530383E: curl_easy_perform (in /usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.4.4.0)
+==10505==    by 0x403885: _idris_Todaybot_46_Curl_46_curlEasyPerform (in /home/benc/src/idristodaybot/todaybot)
+==10505==    by 0x56127C: _idris_io_95_bind (in /home/benc/src/idristodaybot/todaybot)
+==10505==    by 0x56127C: _idris_io_95_bind (in /home/benc/src/idristodaybot/todaybot)
+==10505==    by 0x56127C: _idris_io_95_bind (in /home/benc/src/idristodaybot/todaybot)
+==10505==    by 0x5A0499: _idris__123_runMain_95_0_125_ (in /home/benc/src/idristodaybot/todaybot)
+==10505==    by 0x4025E3: main (in /home/benc/src/idristodaybot/todaybot)
+
+-}
