@@ -176,6 +176,9 @@ write_callback = unsafePerformIO $
 curlEasyInit : IO Ptr
 curlEasyInit = foreign FFI_C "curl_easy_init" (IO (Ptr))
 
+curlEasyCleanup : Ptr -> IO ()
+curlEasyCleanup handle = foreign FFI_C "curl_easy_cleanup" (Ptr -> IO ()) handle
+
 curlGlobalInit : IO Int
 curlGlobalInit = foreign FFI_C "curl_global_init" (Int -> IO Int) 3
 

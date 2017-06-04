@@ -217,6 +217,16 @@ get_access_token = do
   putStrLn "easy_perform return code:"
   printLn ret
 
+  -- QUESTION/DISCUSSION: can this release happen through
+  -- garbage collection? should it? (it will shut network
+  -- connections as well as release memory - so maybe that
+  -- shouldn't happen, and instead an explicit 'with' block
+  -- should wrap the curl interactions, perhaps using
+  -- Effects for this?)
+
+  curlEasyCleanup easy_handle
+
+
   -- at this point, content_buf_ptr should be a **content
   -- reference that we can somehow cast into a string
   -- and then parse as JSON. and then leave to the winds
@@ -324,6 +334,8 @@ get_hot_posts access_token = do
 
   putStrLn "easy_perform return code:"
   printLn ret
+
+  curlEasyCleanup easy_handle2
 
 -- DISCUSSION:
 -- with everything up to here mostly in a big main function
@@ -442,6 +454,8 @@ forceFlair access_token post new_flair new_css_class = do
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
 
   ret <- curlEasyPerform easy_handle
+
+  curlEasyCleanup easy_handle
 
   putStrLn "End of forceFlair"
 
