@@ -94,7 +94,6 @@ timeTToDate timet = do
   -- we should size it correctly, but for now just allocate a load
   -- and hope that it is big enough. TODO: make this based on size
   -- of struct tm
-  -- TODO: don't forget to release this
   tm_ptr <- alloc_bytes 256
   -- this memory will be populated by a later call to localtime_r
   -- so does not need initialising.
@@ -103,8 +102,7 @@ timeTToDate timet = do
   -- QUESTION/DISCUSSION: why does localtime_r take that as a
   -- pointer not a raw time_t? does it modify it? 
 
-  -- TODO: don't forget to release this
-  timet_ptr <- alloc_bytes 256 -- should be sizeof timet
+  timet_ptr <- alloc_bytes 256 -- TODO should be sizeof timet
   -- timet_ptr needs to be populated with the value of timet
   poke_long timet_ptr timet
 
@@ -138,6 +136,9 @@ When checking argument fty to function foreign:
   -- the *integer* is the problem in the supplied error message.
 
   d <- foreign FFI_C "get_tm_mday" (Ptr -> IO Int) tm_ptr
+
+  free tm_ptr
+  free timet_ptr
 
   -- QUESTION/DISCUSSION: are these casts safe? I think so because
   -- we're moving to a "bigger" type.

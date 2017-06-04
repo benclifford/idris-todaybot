@@ -198,6 +198,17 @@ get_access_token = do
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
 
+  -- QUESTION/DISCUSSION:
+  -- that "content_buf_ptr" is a complex structure not just a pointer,
+  -- from a memory management perspective, because it potentially contains
+  -- a pointer to another heap buffer: when we release content_buf_ptr
+  -- we also need to release the heap buffer pointed to.
+  -- It can't be released when content_buf_ptr is out of scope because
+  -- (potentially) it goes out of scope before easy perform has happened
+  -- and so easy perform would write to uninitialised memory.
+  -- so for now do manual deallocation of the whole thing.
+
+
   -- ugh! this can't wrap a function, for some reason ... it's
   -- saying "idris: Idris function couldn't be wrapped."
   -- I don't know why entirely: the C function should be available
@@ -254,6 +265,11 @@ get_access_token = do
 
   putStrLn "idris-side: buffer string is: "
   putStrLn response_body
+
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
+
 
   -- TODO: parse out the access_token JSON object field.
   -- TODO: could do with a JSON parser here... there's one inside
@@ -361,6 +377,10 @@ get_hot_posts access_token = do
 
   response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
 
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
+
   pure response_body
 
 -- given a JSON object, looks up the named key returning Nothing
@@ -454,6 +474,10 @@ forceFlair access_token post new_flair new_css_class = do
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
 
   ret <- curlEasyPerform easy_handle
+
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
 
   curlEasyCleanup easy_handle
 

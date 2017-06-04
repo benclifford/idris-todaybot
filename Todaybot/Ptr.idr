@@ -29,6 +29,9 @@ alloc_bytes count = foreign FFI_C "alloc_bytes" (SizeT -> IO Ptr) count
 public export realloc_bytes : Ptr -> SizeT -> IO Ptr
 realloc_bytes old count = foreign FFI_C "realloc" (Ptr -> SizeT -> IO Ptr) old count
 
+public export free : Ptr -> IO ()
+free ptr = foreign FFI_C "free" (Ptr -> IO ()) ptr
+
 public export memcpy : Ptr -> Ptr -> SizeT -> IO Ptr
 memcpy dest src count = foreign FFI_C "memcpy" (Ptr -> Ptr -> SizeT -> IO Ptr) dest src count
 
