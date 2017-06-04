@@ -52,7 +52,7 @@ normaliseYear i = case i > 2000 of
 -- go read about that...
 partial public export titleDateParser : Parser Date
 titleDateParser = do
-  some $ noneOf "["
+  many $ noneOf "["
   char '['
   d <- dateComponent
   char '/'
