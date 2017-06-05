@@ -33,6 +33,7 @@ import Effect.Exception
 import Effect.StdIO
 
 import Todaybot.Curl
+import Todaybot.CurlEffect
 import Todaybot.Date
 import Todaybot.Morph
 import Todaybot.Ptr
@@ -118,7 +119,6 @@ a 'do' block which is only typed as [FILE ()]
 Adding STDIO to the type signature of loadConfigEff makes this work.
 -}
 
-
 partial get_access_token : IO String
 get_access_token = do
 
@@ -169,22 +169,42 @@ get_access_token = do
   -- now init an easy session, giving an easy handle.
 
   putStrLn "Initialising easy session"
-  easy_handle <- curlEasyInit
+
+  -- QUESTION/DISCUSSION
+  -- Trying to put these two into a single `run $ do` block does not
+  -- work, but pulling them both out into a separate function and
+  -- putting an explicit type signature on that function does - so
+  -- apparently the type signature is needed, but because there are no
+  -- inline type signatures, we have to separate it into a separate
+  -- function.
+
+  -- making an inline 'quux' with the same type signature as
+  -- when defined as a top level function does not work.
+{-
+  let quux = do
+               h <- CurlEffect.curlEasyInit
+               checkPointerNotNull h
+               pure h
+
+  easy_handle <- run $ the (Eff Ptr [CURL, EXCEPTION String]) quux
+-}
+
+  easy_handle <- run $ curlEasyInit
   run $ checkPointerNotNull easy_handle
 
-  ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionUserPwd (app_id ++ ":" ++ app_token)
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUserPwd (app_id ++ ":" ++ app_token)
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
+  ret <- run $ curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  ret <- run $ curlEasySetopt easy_handle CurlOptionVerbose 1
   run $ checkCurlRet ret
 
 
@@ -207,7 +227,7 @@ get_access_token = do
   -- library? (uniqueness types look interesting but not sure if they
   -- fit in with this model of passing in addresses to C libraries?)
 
-  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   run $ checkCurlRet ret
 
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
@@ -215,7 +235,7 @@ get_access_token = do
   content_buf_ptr <- alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
-  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
 
   -- QUESTION/DISCUSSION:
@@ -242,7 +262,7 @@ get_access_token = do
 
   putStrLn "Performing easy session"
 
-  ret <- curlEasyPerform easy_handle
+  ret <- run $ curlEasyPerform easy_handle
   run $ checkCurlRet ret
 
   -- QUESTION/DISCUSSION: can this release happen through
@@ -252,7 +272,7 @@ get_access_token = do
   -- should wrap the curl interactions, perhaps using
   -- Effects for this?)
 
-  curlEasyCleanup easy_handle
+  run $ curlEasyCleanup easy_handle
 
 
   -- at this point, content_buf_ptr should be a **content
@@ -337,43 +357,43 @@ get_hot_posts access_token = do
 
   -- getHotPosts using libcurl.
 
-  easy_handle <- curlEasyInit
+  easy_handle <- run $ curlEasyInit
 
   -- TODO: better abstractions for this slist? Can we do it functionally
   -- using unsafePerformIO? and using a better pointer type rather than
   -- Ptr.
 
-  slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+  slist <- run $ curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   -- TODO: factor this for calling on any http request
-  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   run $ checkCurlRet ret
 
   content_buf_ptr <- alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
 
-  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
 
   -- TODO: factor into "set todaybot useragent header"
-  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+  ret <- run $ curlEasySetopt easy_handle CurlOptionHttpHeader slist
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
   run $ checkCurlRet ret
 
   putStrLn "Performing easy session (2)"
 
-  ret <- curlEasyPerform easy_handle
+  ret <- run $ curlEasyPerform easy_handle
   run $ checkCurlRet ret
 
-  curlEasyCleanup easy_handle
+  run $ curlEasyCleanup easy_handle
   -- slist is not allowed to be released until after the handle
-  curlSListFreeAll slist
+  run $ curlSListFreeAll slist
 
 -- DISCUSSION:
 -- with everything up to here mostly in a big main function
@@ -473,49 +493,49 @@ forceFlair access_token post new_flair new_css_class = do
   -- happen on the same handle? if so it would be advantageous
   -- to share the handle for flair setting with the handle used
   -- for retrieving the post list.
-  easy_handle <- curlEasyInit
+  easy_handle <- run $ curlEasyInit
   run $ checkPointerNotNull easy_handle
 
   -- TODO: all these rets need testing.
 
-  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
   run $ checkCurlRet ret
 
 
-  ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
+  ret <- run $ curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  ret <- run $ curlEasySetopt easy_handle CurlOptionVerbose 1
   run $ checkCurlRet ret
 
   slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
   run $ checkPointerNotNull slist
 
-  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+  ret <- run $ curlEasySetopt easy_handle CurlOptionHttpHeader slist
   run $ checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   run $ checkCurlRet ret
 
   content_buf_ptr <- alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
 
   poke_ptr content_buf_ptr null_pointer
-  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
 
-  ret <- curlEasyPerform easy_handle
+  ret <- run $ curlEasyPerform easy_handle
   run $ checkCurlRet ret
 
   content_buf <- peek_ptr content_buf_ptr
   free content_buf
   free content_buf_ptr
 
-  curlEasyCleanup easy_handle
-  curlSListFreeAll slist
+  run $ curlEasyCleanup easy_handle
+  run $ curlSListFreeAll slist
 
   putStrLn "End of forceFlair"
 
