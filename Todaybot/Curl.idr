@@ -196,6 +196,6 @@ curlSListFreeAll list = foreign FFI_C "curl_slist_free_all" (Ptr -> IO ()) list
 -- This is a fairly ugly way of causing the program to crash on a curl
 -- error rather than continuing silently.
 -- It should turn into something like effectful exceptions?
-checkCurlRet : Int -> IO ()
+checkCurlRet : Int -> Eff () [EXCEPTION String]
 checkCurlRet 0 = pure ()
-checkCurlRet _ = run $ raise "checkCurlRet: return code was non-zero"
+checkCurlRet _ = raise "checkCurlRet: return code was non-zero"
