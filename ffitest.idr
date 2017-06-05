@@ -119,7 +119,7 @@ a 'do' block which is only typed as [FILE ()]
 Adding STDIO to the type signature of loadConfigEff makes this work.
 -}
 
-partial get_access_token : IO String
+partial get_access_token : Eff String [STDIO, FILE (), EXCEPTION String, CURL, MEMORY]
 get_access_token = do
 
   -- QUESTION/DISCUSSION this uses effects, but should I spread
@@ -127,7 +127,7 @@ get_access_token = do
   -- Probably, yes - to get away from using IO everywhere, like
   -- in the Haskell version.
 
-  run $ putStrLn "reading config"
+  putStrLn "reading config"
 
   -- QUESTION/FOR DISCUSSION
   -- I attempted to use the same syntax as the Haskell
@@ -147,7 +147,7 @@ get_access_token = do
   -- than (eg.) giving an error that we stopped parsing before the
   -- end of the file or that the symbol is invalid. (are they invalid?)
 
-  config_map <- run $ loadConfig
+  config_map <- loadConfig
 
 
 -- QUESTION/DISCUSSION: using "Just username" in this let binding
@@ -163,13 +163,12 @@ get_access_token = do
   let app_id = fromJust $ lookup "appid" config_map
   let app_token = fromJust $ lookup "appsecret" config_map
 
-  run $ do
-    putStrLn "looked up username:"
-    printLn username
+  putStrLn "looked up username:"
+  printLn username
 
   -- now init an easy session, giving an easy handle.
 
-  run $ putStrLn "Initialising easy session"
+  putStrLn "Initialising easy session"
 
   -- QUESTION/DISCUSSION
   -- Trying to put these two into a single `run $ do` block does not
@@ -190,23 +189,23 @@ get_access_token = do
   easy_handle <- run $ the (Eff Ptr [CURL, EXCEPTION String]) quux
 -}
 
-  easy_handle <- run $ curlEasyInit
-  run $ checkPointerNotNull easy_handle
+  easy_handle <- curlEasyInit
+  checkPointerNotNull easy_handle
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUserPwd (app_id ++ ":" ++ app_token)
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUserPwd (app_id ++ ":" ++ app_token)
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionVerbose 1
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  checkCurlRet ret
 
 
   -- TODO: callback that will get the output and do something with
@@ -228,16 +227,16 @@ get_access_token = do
   -- library? (uniqueness types look interesting but not sure if they
   -- fit in with this model of passing in addresses to C libraries?)
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  checkCurlRet ret
 
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
   -- enough for now.
-  content_buf_ptr <- run $ alloc_bytes 16
-  run $ checkPointerNotNull content_buf_ptr
-  run $ poke_ptr content_buf_ptr null_pointer
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
-  run $ checkCurlRet ret
+  content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
+  poke_ptr content_buf_ptr null_pointer
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
   -- QUESTION/DISCUSSION:
   -- that "content_buf_ptr" is a complex structure not just a pointer,
@@ -261,10 +260,10 @@ get_access_token = do
   -- or can I use "%wrapper" to get the address at run time and then
   -- pass that in as write_callback?
 
-  run $ putStrLn "Performing easy session"
+  putStrLn "Performing easy session"
 
-  ret <- run $ curlEasyPerform easy_handle
-  run $ checkCurlRet ret
+  ret <- curlEasyPerform easy_handle
+  checkCurlRet ret
 
   -- QUESTION/DISCUSSION: can this release happen through
   -- garbage collection? should it? (it will shut network
@@ -273,7 +272,7 @@ get_access_token = do
   -- should wrap the curl interactions, perhaps using
   -- Effects for this?)
 
-  run $ curlEasyCleanup easy_handle
+  curlEasyCleanup easy_handle
 
 
   -- at this point, content_buf_ptr should be a **content
@@ -283,7 +282,7 @@ get_access_token = do
   -- it is safe to unalloc?) - regions/linear types?
 
 
-  run $ dump_buffer content_buf_ptr
+  dump_buffer content_buf_ptr
 
   -- QUESTION/DISCUSSION: what's the right/best way to get an
   -- idris string out of this buffer? (there might be encoding
@@ -299,15 +298,14 @@ get_access_token = do
              of it) it should be ok for me to free() it right after.
 -}
 
-  response_body <- run $ cast_to_string content_buf_ptr
+  response_body <- cast_to_string content_buf_ptr
 
-  run $ do
-    putStrLn "idris-side: buffer string is: "
-    putStrLn response_body
+  putStrLn "idris-side: buffer string is: "
+  putStrLn response_body
 
-  content_buf <- run $ peek_ptr content_buf_ptr
-  run $ free content_buf
-  run $ free content_buf_ptr
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
 
 
   -- TODO: parse out the access_token JSON object field.
@@ -317,9 +315,8 @@ get_access_token = do
   let asJSON = Config.JSON.fromString response_body
 
 
-  run $ do
-    putStrLn "buffer as json:"
-    printLn asJSON
+  putStrLn "buffer as json:"
+  printLn asJSON
 
   -- QUESTION/COMMENT: using this case as a let, and not returning
   -- IO actions doesn't seem to work for me, with an incomplete
@@ -349,9 +346,8 @@ sure why this doesn't work...
  
   let (Just (JsonString access_token)) = Data.AVL.Dict.lookup "access_token" dict
  
-  run $ do
-    putStrLn "access_token is:"
-    putStrLn access_token
+  putStrLn "access_token is:"
+  putStrLn access_token
 
   pure access_token
 
@@ -679,7 +675,7 @@ processPost access_token post = do
 
 partial oneshotMain : IO ()
 oneshotMain = do
-  access_token <- get_access_token
+  access_token <- run get_access_token
 
   -- finally, we're logged in.
   hot_posts <- get_hot_posts access_token
