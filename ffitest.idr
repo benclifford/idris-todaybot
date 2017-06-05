@@ -127,7 +127,7 @@ get_access_token = do
   -- Probably, yes - to get away from using IO everywhere, like
   -- in the Haskell version.
 
-  putStrLn "reading config"
+  run $ putStrLn "reading config"
 
   -- QUESTION/FOR DISCUSSION
   -- I attempted to use the same syntax as the Haskell
@@ -163,12 +163,13 @@ get_access_token = do
   let app_id = fromJust $ lookup "appid" config_map
   let app_token = fromJust $ lookup "appsecret" config_map
 
-  putStrLn "looked up username:"
-  printLn username
+  run $ do
+    putStrLn "looked up username:"
+    printLn username
 
   -- now init an easy session, giving an easy handle.
 
-  putStrLn "Initialising easy session"
+  run $ putStrLn "Initialising easy session"
 
   -- QUESTION/DISCUSSION
   -- Trying to put these two into a single `run $ do` block does not
@@ -260,7 +261,7 @@ get_access_token = do
   -- or can I use "%wrapper" to get the address at run time and then
   -- pass that in as write_callback?
 
-  putStrLn "Performing easy session"
+  run $ putStrLn "Performing easy session"
 
   ret <- run $ curlEasyPerform easy_handle
   run $ checkCurlRet ret
@@ -300,8 +301,9 @@ get_access_token = do
 
   response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
 
-  putStrLn "idris-side: buffer string is: "
-  putStrLn response_body
+  run $ do
+    putStrLn "idris-side: buffer string is: "
+    putStrLn response_body
 
   content_buf <- peek_ptr content_buf_ptr
   free content_buf
@@ -315,8 +317,9 @@ get_access_token = do
   let asJSON = Config.JSON.fromString response_body
 
 
-  putStrLn "buffer as json:"
-  printLn asJSON
+  run $ do
+    putStrLn "buffer as json:"
+    printLn asJSON
 
   -- QUESTION/COMMENT: using this case as a let, and not returning
   -- IO actions doesn't seem to work for me, with an incomplete
@@ -346,8 +349,9 @@ sure why this doesn't work...
  
   let (Just (JsonString access_token)) = Data.AVL.Dict.lookup "access_token" dict
  
-  putStrLn "access_token is:"
-  putStrLn access_token
+  run $ do
+    putStrLn "access_token is:"
+    putStrLn access_token
 
   pure access_token
 
