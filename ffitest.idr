@@ -9,12 +9,6 @@ import Config.JSON
 -- https://github.com/benclifford/idris-hang-1
 import Effects
 
-import Todaybot.Curl
-import Todaybot.Date
-import Todaybot.Morph
-import Todaybot.Ptr
-import Todaybot.TitleParser
-
 -- QUESTION/FOR DISCUSSION:
 -- omitting this import of Effect.File gives an unexpected
 -- error message to do with type matching. Presumably it not
@@ -35,6 +29,11 @@ When checking argument env to function Effects.run:
 -}
 import Effect.File
 
+import Todaybot.Curl
+import Todaybot.Date
+import Todaybot.Morph
+import Todaybot.Ptr
+import Todaybot.TitleParser
 
 -- TODO: put this in the config file
 -- and thread that config around suitably.
