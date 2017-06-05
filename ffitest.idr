@@ -361,7 +361,7 @@ get_hot_posts access_token = do
 
   -- getHotPosts using libcurl.
 
-  easy_handle2 <- curlEasyInit
+  easy_handle <- curlEasyInit
 
   -- TODO: better abstractions for this slist? Can we do it functionally
   -- using unsafePerformIO? and using a better pointer type rather than
@@ -370,32 +370,32 @@ get_hot_posts access_token = do
   slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   -- TODO: factor this for calling on any http request
-  ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   checkCurlRet ret
 
   content_buf_ptr <- alloc_bytes 16
   checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionWriteData content_buf_ptr
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   checkCurlRet ret
 
   -- TODO: factor into "set todaybot useragent header"
-  ret <- curlEasySetopt easy_handle2 CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
   checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
+  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
   checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle2 CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
+  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
   checkCurlRet ret
 
   putStrLn "Performing easy session (2)"
 
-  ret <- curlEasyPerform easy_handle2
+  ret <- curlEasyPerform easy_handle
   checkCurlRet ret
 
-  curlEasyCleanup easy_handle2
+  curlEasyCleanup easy_handle
   -- slist is not allowed to be released until after the handle
   curlSListFreeAll slist
 
