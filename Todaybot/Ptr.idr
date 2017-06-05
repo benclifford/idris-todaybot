@@ -21,10 +21,8 @@ import Effect.Exception
 public export null_pointer : Ptr
 null_pointer = unsafePerformIO $ foreign FFI_C "get_null_pointer" (IO Ptr)
 
--- TODO this should be effectful exceptions, not a hole, but it is a better
--- bodge than nothing.
-public export checkPointerNotNull : Ptr -> IO ()
-checkPointerNotNull ptr = run $
+public export checkPointerNotNull : Ptr -> Eff () [EXCEPTION String]
+checkPointerNotNull ptr =
   if ptr == null_pointer 
   then raise "checkPointerNotNull: Null pointer"
   else pure ()

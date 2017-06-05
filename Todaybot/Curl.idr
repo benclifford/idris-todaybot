@@ -134,7 +134,7 @@ write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
 
   let size_to_alloc = s1 * s2 + old_length + 1
   longterm_buf <- realloc_bytes old_buf size_to_alloc
-  checkPointerNotNull longterm_buf
+  run $ checkPointerNotNull longterm_buf
 
   -- rather than a memcpy this should be a concatenation
   -- which after one iteration will be fine because we know

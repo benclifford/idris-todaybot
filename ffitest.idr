@@ -170,7 +170,7 @@ get_access_token = do
 
   putStrLn "Initialising easy session"
   easy_handle <- curlEasyInit
-  checkPointerNotNull easy_handle
+  run $ checkPointerNotNull easy_handle
 
   ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
   checkCurlRet ret
@@ -213,7 +213,7 @@ get_access_token = do
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
   -- enough for now.
   content_buf_ptr <- alloc_bytes 16
-  checkPointerNotNull content_buf_ptr
+  run $ checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   checkCurlRet ret
@@ -350,7 +350,7 @@ get_hot_posts access_token = do
   checkCurlRet ret
 
   content_buf_ptr <- alloc_bytes 16
-  checkPointerNotNull content_buf_ptr
+  run $ checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
 
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
@@ -474,7 +474,7 @@ forceFlair access_token post new_flair new_css_class = do
   -- to share the handle for flair setting with the handle used
   -- for retrieving the post list.
   easy_handle <- curlEasyInit
-  checkPointerNotNull easy_handle
+  run $ checkPointerNotNull easy_handle
 
   -- TODO: all these rets need testing.
 
@@ -492,7 +492,7 @@ forceFlair access_token post new_flair new_css_class = do
   checkCurlRet ret
 
   slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
-  checkPointerNotNull slist
+  run $ checkPointerNotNull slist
 
   ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
   checkCurlRet ret
@@ -501,7 +501,7 @@ forceFlair access_token post new_flair new_css_class = do
   checkCurlRet ret
 
   content_buf_ptr <- alloc_bytes 16
-  checkPointerNotNull content_buf_ptr
+  run $ checkPointerNotNull content_buf_ptr
 
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
