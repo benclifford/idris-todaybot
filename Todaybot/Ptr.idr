@@ -82,3 +82,48 @@ is_null ptr = do
     502 => False
 -}
 
+
+-- QUESTION/DISCUSSION: really the top level todaybot code shouldn't be
+-- exposing a MEMORY effect: that is an effect needed by the CURL
+-- effect implementation, rather than by todaybot - because type signatures
+-- need to contain (I think) the entire effects list.
+namespace effect
+
+  public export data Memory : Effect where
+    AllocBytes : SizeT -> sig Memory Ptr
+    PokePtr : Ptr -> Ptr -> sig Memory ()
+    PeekPtr : Ptr -> sig Memory Ptr
+    Free : Ptr -> sig Memory ()
+
+  public export MEMORY : EFFECT
+  MEMORY = MkEff () Memory
+
+  public export alloc_bytes : SizeT -> Eff Ptr [MEMORY]
+  alloc_bytes size = call $ AllocBytes size
+
+  public export poke_ptr : (base : Ptr) -> (value : Ptr) -> Eff () [MEMORY]
+  poke_ptr base value = call $ PokePtr base value
+
+  public export peek_ptr : (base : Ptr) -> Eff Ptr [MEMORY]
+  peek_ptr base = call $ PeekPtr base
+
+  public export free : (base : Ptr) -> Eff () [MEMORY]
+  free base = call $ Free base
+
+  public export Handler Memory IO where
+    handle () (AllocBytes size) k = do
+      ptr <- alloc_bytes size
+      k ptr ()
+
+    handle () (PokePtr base value) k = do
+      poke_ptr base value
+      k () ()
+
+    handle () (PeekPtr base) k = do
+      v <- peek_ptr base
+      k v ()
+
+    handle () (Free base) k = do
+      free base
+      k () ()
+

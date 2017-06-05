@@ -233,9 +233,9 @@ get_access_token = do
 
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
   -- enough for now.
-  content_buf_ptr <- alloc_bytes 16
+  content_buf_ptr <- run $ alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
-  poke_ptr content_buf_ptr null_pointer
+  run $ poke_ptr content_buf_ptr null_pointer
   ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
 
@@ -305,9 +305,9 @@ get_access_token = do
     putStrLn "idris-side: buffer string is: "
     putStrLn response_body
 
-  content_buf <- peek_ptr content_buf_ptr
-  free content_buf
-  free content_buf_ptr
+  content_buf <- run $ peek_ptr content_buf_ptr
+  run $ free content_buf
+  run $ free content_buf_ptr
 
 
   -- TODO: parse out the access_token JSON object field.
@@ -373,9 +373,9 @@ get_hot_posts access_token = do
   ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   run $ checkCurlRet ret
 
-  content_buf_ptr <- alloc_bytes 16
+  content_buf_ptr <- run $ alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
-  poke_ptr content_buf_ptr null_pointer
+  run $ poke_ptr content_buf_ptr null_pointer
 
   ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
@@ -423,9 +423,9 @@ get_hot_posts access_token = do
 
   response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
 
-  content_buf <- peek_ptr content_buf_ptr
-  free content_buf
-  free content_buf_ptr
+  content_buf <- run $ peek_ptr content_buf_ptr
+  run $ free content_buf
+  run $ free content_buf_ptr
 
   pure response_body
 
@@ -524,19 +524,19 @@ forceFlair access_token post new_flair new_css_class = do
   ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
   run $ checkCurlRet ret
 
-  content_buf_ptr <- alloc_bytes 16
+  content_buf_ptr <- run $ alloc_bytes 16
   run $ checkPointerNotNull content_buf_ptr
 
-  poke_ptr content_buf_ptr null_pointer
+  run $ poke_ptr content_buf_ptr null_pointer
   ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
   run $ checkCurlRet ret
 
   ret <- run $ curlEasyPerform easy_handle
   run $ checkCurlRet ret
 
-  content_buf <- peek_ptr content_buf_ptr
-  free content_buf
-  free content_buf_ptr
+  content_buf <- run $ peek_ptr content_buf_ptr
+  run $ free content_buf
+  run $ free content_buf_ptr
 
   run $ curlEasyCleanup easy_handle
   run $ curlSListFreeAll slist
