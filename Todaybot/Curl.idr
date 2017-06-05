@@ -191,3 +191,5 @@ curlEasyPerform handle = foreign FFI_C "curl_easy_perform" (Ptr -> IO Int) handl
 curlSListAppend : Ptr -> String -> IO Ptr
 curlSListAppend list str = foreign FFI_C "curl_slist_append" (Ptr -> String -> IO Ptr) list str
 
+curlSListFreeAll : Ptr -> IO ()
+curlSListFreeAll list = foreign FFI_C "curl_slist_free_all" (Ptr -> IO ()) list 

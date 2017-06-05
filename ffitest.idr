@@ -352,6 +352,8 @@ get_hot_posts access_token = do
   printLn ret
 
   curlEasyCleanup easy_handle2
+  -- slist is not allowed to be released until after the handle
+  curlSListFreeAll slist
 
 -- DISCUSSION:
 -- with everything up to here mostly in a big main function
@@ -480,6 +482,7 @@ forceFlair access_token post new_flair new_css_class = do
   free content_buf_ptr
 
   curlEasyCleanup easy_handle
+  curlSListFreeAll slist
 
   putStrLn "End of forceFlair"
 
