@@ -169,27 +169,6 @@ get_access_token = do
   putStrLn "looked up username:"
   printLn username
 
-{-
-  config_map <- case config of
-    Right yamlDoc =>
-      do putStrLn "Got YAMLNode..."
-         case yamlDoc of
-           YAMLDoc _ yamlMap =>
-             do putStrLn " ... which is a YamlDoc"
-                case yamlMap of
-                  YAMLMap map => pure map
-                -- yamlMap is YAMLMap (List (YAMLNode, YAMLNode))
--}
-{-
-    Left configError =>
-      do putStrLn "config error"
-         printLn configError
-         pure []
--}
-           
-
-
-
   -- now init an easy session, giving an easy handle.
 
   putStrLn "Initialising easy session"
