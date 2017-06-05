@@ -832,3 +832,18 @@ main = do
 ==10505==    by 0x4025E3: main (in /home/benc/src/idristodaybot/todaybot)
 
 -}
+
+{- QUESTION/DISCUSSION:
+after tidying curl and time C heap memory leaks, valgrind detects only
+one final leak, coming from idris itself:
+
+==11275== 416 bytes in 1 blocks are still reachable in loss record 1 of 1
+==11275==    at 0x4C2DB8F: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==11275==    by 0x404282: init_vm (in /home/benc/src/idristodaybot/hello)
+==11275==    by 0x4020FA: main (in /home/benc/src/idristodaybot/hello)
+==11275== 
+
+Maybe that should be freed in idris, for valgrind perfection?
+
+
+-}
