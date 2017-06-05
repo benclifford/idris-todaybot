@@ -29,6 +29,7 @@ When checking argument env to function Effects.run:
 -}
 import Effect.File
 
+import Effect.Exception
 import Effect.StdIO
 
 import Todaybot.Curl
@@ -61,8 +62,11 @@ partial uns : YAMLNode -> String
 uns (YAMLString s) = s
 uns (YAMLScalar s) = s
 
-partial shred_config : (Either ConfigError YAMLNode) -> Eff (List (String, String)) [STDIO]
-shred_config config = 
+TodaybotError : Type
+TodaybotError = String
+
+partial shred_config : (Either ConfigError YAMLNode) -> Eff (List (String, String)) [STDIO, EXCEPTION TodaybotError]
+shred_config config =
   case config of
     Right yamlDoc =>
       do putStrLn "Got YAMLNode..."
@@ -75,10 +79,10 @@ shred_config config =
     Left configError =>
       do putStrLn "config error"
          printLn configError
-         pure [] -- TODO: should be an exception effect
+         raise "shred_config: error shredding configuration file"
 
 
-partial loadConfigEff : Eff (List (String, String)) [FILE (), STDIO]
+partial loadConfigEff : Eff (List (String, String)) [FILE (), STDIO, EXCEPTION TodaybotError]
 loadConfigEff = do
   config <- readYAMLConfig "secrets.yaml"
   putStrLn "Config is:"
