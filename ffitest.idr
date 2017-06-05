@@ -580,7 +580,7 @@ processPost access_token post = do
 
   -- the basic time based transition rules:
   -- is this post today, with blank flair? => set flair to today
-  -- is this post in past, with 'today' flair? => set flair to archived
+  -- is this post in past, with 'today' or blank flair? => set flair to archived
 
   -- today but blank flair?
   if (Just nowDate == postdate && postflair == Nothing) 
@@ -601,7 +601,8 @@ processPost access_token post = do
 -- (and goes away if 'pure (d < nowDate)' is replaced with
 -- 'pure False'.
 
-  if inpast == Just True && postflair == Just ("Today", "today")
+  if inpast == Just True && (  postflair == Just ("Today", "today")
+                            || postflair == Nothing )
     then do
       putStrLn "Rule PAST firing"
       forceFlair access_token post "Archived" "archived" 
