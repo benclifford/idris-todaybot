@@ -8,6 +8,9 @@ Namng Effects vs Effect.* is ugh
 import Effects
 import Effect.Exception
 
+%include C "ptr.h"
+%link C "ptr.o"
+
 -- QUESTION/DISCUSSION: this poke stuff should be able to be
 -- made into a single poke that knows what to poke based on
 -- its parameter, like haskell's storable type classes?
