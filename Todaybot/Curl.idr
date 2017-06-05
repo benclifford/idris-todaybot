@@ -1,5 +1,8 @@
 module Todaybot.Curl
 
+import Effects
+import Effect.Exception
+
 import Todaybot.Ptr
 
 %access public export
@@ -195,4 +198,4 @@ curlSListFreeAll list = foreign FFI_C "curl_slist_free_all" (Ptr -> IO ()) list
 -- It should turn into something like effectful exceptions?
 checkCurlRet : Int -> IO ()
 checkCurlRet 0 = pure ()
-checkCurlRet _ = ?curl_return_code_nonzero
+checkCurlRet _ = run $ raise "checkCurlRet: return code was non-zero"

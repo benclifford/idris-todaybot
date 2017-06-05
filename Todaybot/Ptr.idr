@@ -1,5 +1,13 @@
 module Todaybot.Ptr
 
+{- QUESTION/DISCUSSION: Naming(!)
+
+Namng Effects vs Effect.* is ugh
+
+-}
+import Effects
+import Effect.Exception
+
 -- QUESTION/DISCUSSION: this poke stuff should be able to be
 -- made into a single poke that knows what to poke based on
 -- its parameter, like haskell's storable type classes?
@@ -13,9 +21,9 @@ null_pointer = unsafePerformIO $ foreign FFI_C "get_null_pointer" (IO Ptr)
 -- TODO this should be effectful exceptions, not a hole, but it is a better
 -- bodge than nothing.
 public export checkPointerNotNull : Ptr -> IO ()
-checkPointerNotNull ptr = 
+checkPointerNotNull ptr = run $
   if ptr == null_pointer 
-  then ?pointer_is_null
+  then raise "checkPointerNotNull: Null pointer"
   else pure ()
 
 -- TODO: this should be captured at compile time
