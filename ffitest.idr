@@ -29,6 +29,8 @@ When checking argument env to function Effects.run:
 -}
 import Effect.File
 
+import Effect.StdIO
+
 import Todaybot.Curl
 import Todaybot.Date
 import Todaybot.Morph
@@ -58,6 +60,39 @@ subredditName = "LondonSocialClub"
 partial uns : YAMLNode -> String
 uns (YAMLString s) = s
 uns (YAMLScalar s) = s
+
+partial loadConfigEff : Eff (Either ConfigError YAMLNode) [FILE (), STDIO]
+loadConfigEff = do
+  c <- readYAMLConfig "secrets.yaml"
+  putStrLn "Config is:"
+  printLn c
+  pure c
+
+{- QUESTION/DISCUSSION:
+
+when an effect is missing from the list, this is the kind of error
+we get:
+
+ffitest.idr:67:18:
+When checking right hand side of loadConfigEff with expected type
+        EffM m
+             (Either ConfigError YAMLNode)
+             [FILE ()]
+             (\v => [FILE ()])
+
+When checking argument prf to function Effects.lift:
+        Can't find a value of type 
+                SubList [STDIO] [FILE ()]
+
+which comes from using a STDIO effect (StdIO.putStrLn) inside
+a 'do' block which is only typed as [FILE ()]
+
+Adding STDIO to the type signature of loadConfigEff makes this work.
+-}
+
+
+partial loadConfig : IO (Either ConfigError YAMLNode)
+loadConfig = Effects.run loadConfigEff
 
 partial shred_config : (Either ConfigError YAMLNode) -> IO (List (String, String))
 shred_config config = 
@@ -103,9 +138,7 @@ get_access_token = do
   -- than (eg.) giving an error that we stopped parsing before the
   -- end of the file or that the symbol is invalid. (are they invalid?)
 
-  config <- Effects.run $ readYAMLConfig "secrets.yaml"
-  putStrLn "Config is:"
-  printLn config
+  config <- loadConfig
 
   config_map <- shred_config config
 
