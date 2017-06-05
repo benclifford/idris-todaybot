@@ -155,20 +155,22 @@ get_access_token = do
 
   putStrLn "Initialising easy session"
   easy_handle <- curlEasyInit
-  -- TODO: check easy_handle for non-null
+  checkPointerNotNull easy_handle
 
   ret <- curlEasySetopt easy_handle CurlOptionUrl "https://www.reddit.com/api/v1/access_token"
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
-
-  putStrLn "set user agent result code:"
-  printLn ret
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionUserPwd (app_id ++ ":" ++ app_token)
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("grant_type=password&username=" ++ username ++ "&password=" ++ password)
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  checkCurlRet ret
 
 
   -- TODO: callback that will get the output and do something with
@@ -191,12 +193,15 @@ get_access_token = do
   -- fit in with this model of passing in addresses to C libraries?)
 
   ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  checkCurlRet ret
 
   -- TODO: replace 16 with sizeof a Ptr. but 16 should be big
   -- enough for now.
   content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
   -- QUESTION/DISCUSSION:
   -- that "content_buf_ptr" is a complex structure not just a pointer,
@@ -223,10 +228,7 @@ get_access_token = do
   putStrLn "Performing easy session"
 
   ret <- curlEasyPerform easy_handle
-  -- TODO: assert ret == 0//CURLE_OK
-
-  putStrLn "easy_perform return code:"
-  printLn ret
+  checkCurlRet ret
 
   -- QUESTION/DISCUSSION: can this release happen through
   -- garbage collection? should it? (it will shut network
@@ -330,26 +332,29 @@ get_hot_posts access_token = do
 
   -- TODO: factor this for calling on any http request
   ret <- curlEasySetopt easy_handle2 CurlOptionWriteFunction write_callback
-  content_buf_ptr <- alloc_bytes 16
-  poke_ptr content_buf_ptr null_pointer
-  ret <- curlEasySetopt easy_handle2 CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
+  content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
+  poke_ptr content_buf_ptr null_pointer
+
+  ret <- curlEasySetopt easy_handle2 CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
   -- TODO: factor into "set todaybot useragent header"
   ret <- curlEasySetopt easy_handle2 CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle2 CurlOptionHttpHeader slist
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle2 CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
-  -- TODO: check ret
+  checkCurlRet ret
 
   putStrLn "Performing easy session (2)"
 
   ret <- curlEasyPerform easy_handle2
-  -- TODO: assert ret == 0//CURLE_OK
-
-  putStrLn "easy_perform return code:"
-  printLn ret
+  checkCurlRet ret
 
   curlEasyCleanup easy_handle2
   -- slist is not allowed to be released until after the handle
@@ -454,28 +459,41 @@ forceFlair access_token post new_flair new_css_class = do
   -- to share the handle for flair setting with the handle used
   -- for retrieving the post list.
   easy_handle <- curlEasyInit
+  checkPointerNotNull easy_handle
 
   -- TODO: all these rets need testing.
 
   ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  checkCurlRet ret
 
 
   ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  checkCurlRet ret
 
   slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+  checkPointerNotNull slist
 
   ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+  checkCurlRet ret
 
   ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  checkCurlRet ret
+
   content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
+
   poke_ptr content_buf_ptr null_pointer
   ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
   ret <- curlEasyPerform easy_handle
+  checkCurlRet ret
 
   content_buf <- peek_ptr content_buf_ptr
   free content_buf

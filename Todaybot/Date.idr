@@ -95,6 +95,7 @@ timeTToDate timet = do
   -- and hope that it is big enough. TODO: make this based on size
   -- of struct tm
   tm_ptr <- alloc_bytes 256
+  checkPointerNotNull tm_ptr
   -- this memory will be populated by a later call to localtime_r
   -- so does not need initialising.
  
@@ -103,6 +104,7 @@ timeTToDate timet = do
   -- pointer not a raw time_t? does it modify it? 
 
   timet_ptr <- alloc_bytes 256 -- TODO should be sizeof timet
+  checkPointerNotNull timet_ptr
   -- timet_ptr needs to be populated with the value of timet
   poke_long timet_ptr timet
 

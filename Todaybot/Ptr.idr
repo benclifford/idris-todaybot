@@ -10,6 +10,14 @@ module Todaybot.Ptr
 public export null_pointer : Ptr
 null_pointer = unsafePerformIO $ foreign FFI_C "get_null_pointer" (IO Ptr)
 
+-- TODO this should be effectful exceptions, not a hole, but it is a better
+-- bodge than nothing.
+public export checkPointerNotNull : Ptr -> IO ()
+checkPointerNotNull ptr = 
+  if ptr == null_pointer 
+  then ?pointer_is_null
+  else pure ()
+
 -- TODO: this should be captured at compile time
 -- eg using type providers as in example
 public export SizeT : Type

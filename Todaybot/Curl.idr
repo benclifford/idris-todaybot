@@ -67,22 +67,16 @@ EasyHandle = Ptr
 
 -- setoptString doesn't need to be exposed to the rest of the program: it should only be called by curlEasySetopt
 total curlEasySetoptString : EasyHandle -> (opt : CurlOption) -> String -> IO Int
-curlEasySetoptString easy_handle opt param = do
-  ret <- foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> String -> IO Int) easy_handle (curlOptionToFFI opt) param
-  -- TODO: check ret
-  pure ret
+curlEasySetoptString easy_handle opt param =
+  foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> String -> IO Int) easy_handle (curlOptionToFFI opt) param
 
 total curlEasySetoptLong : EasyHandle -> (opt : CurlOption) -> Int -> IO Int
-curlEasySetoptLong easy_handle opt param = do
-  ret <- foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> Int -> IO Int) easy_handle (curlOptionToFFI opt) param
-  -- TODO: check ret
-  pure ret
+curlEasySetoptLong easy_handle opt param =
+  foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> Int -> IO Int) easy_handle (curlOptionToFFI opt) param
 
 total curlEasySetoptPtr : EasyHandle -> (opt : CurlOption) -> Ptr -> IO Int
-curlEasySetoptPtr easy_handle opt param = do
-  ret <- foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> Ptr -> IO Int) easy_handle (curlOptionToFFI opt) param
-  -- TODO: check ret
-  pure ret
+curlEasySetoptPtr easy_handle opt param =
+  foreign FFI_C "curl_easy_setopt" (Ptr -> Int -> Ptr -> IO Int) easy_handle (curlOptionToFFI opt) param
 
 
 -- QUESTION/FOR DISCUSSION:
@@ -137,6 +131,7 @@ write_callback_body curldata s1 s2 userdata = unsafePerformIO $ do
 
   let size_to_alloc = s1 * s2 + old_length + 1
   longterm_buf <- realloc_bytes old_buf size_to_alloc
+  checkPointerNotNull longterm_buf
 
   -- rather than a memcpy this should be a concatenation
   -- which after one iteration will be fine because we know
@@ -193,3 +188,11 @@ curlSListAppend list str = foreign FFI_C "curl_slist_append" (Ptr -> String -> I
 
 curlSListFreeAll : Ptr -> IO ()
 curlSListFreeAll list = foreign FFI_C "curl_slist_free_all" (Ptr -> IO ()) list 
+
+-- QUESTION/DISCUSSION:
+-- This is a fairly ugly way of causing the program to crash on a curl
+-- error rather than continuing silently.
+-- It should turn into something like effectful exceptions?
+checkCurlRet : Int -> IO ()
+checkCurlRet 0 = pure ()
+checkCurlRet _ = ?curl_return_code_nonzero
