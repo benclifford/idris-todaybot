@@ -61,12 +61,36 @@ partial uns : YAMLNode -> String
 uns (YAMLString s) = s
 uns (YAMLScalar s) = s
 
-partial loadConfigEff : Eff (Either ConfigError YAMLNode) [FILE (), STDIO]
+partial shred_config : (Either ConfigError YAMLNode) -> Eff (List (String, String)) [STDIO]
+shred_config config = 
+  case config of
+    Right yamlDoc =>
+      do putStrLn "Got YAMLNode..."
+         case yamlDoc of
+           YAMLDoc _ yamlMap =>
+             do putStrLn " ... which is a YamlDoc"
+                case yamlMap of
+                  YAMLMap m => pure $ map (\(a,b) => (uns a, uns b)) (m)
+                -- yamlMap is YAMLMap (List (YAMLNode, YAMLNode))
+    Left configError =>
+      do putStrLn "config error"
+         printLn configError
+         pure [] -- TODO: should be an exception effect
+
+
+partial loadConfigEff : Eff (List (String, String)) [FILE (), STDIO]
 loadConfigEff = do
-  c <- readYAMLConfig "secrets.yaml"
+  config <- readYAMLConfig "secrets.yaml"
   putStrLn "Config is:"
-  printLn c
-  pure c
+  printLn config
+
+  config_map <- shred_config config
+
+  putStrLn "config shredded to map:"
+  printLn config_map
+
+  pure config_map
+
 
 {- QUESTION/DISCUSSION:
 
@@ -91,24 +115,8 @@ Adding STDIO to the type signature of loadConfigEff makes this work.
 -}
 
 
-partial loadConfig : IO (Either ConfigError YAMLNode)
+partial loadConfig : IO (List (String, String))
 loadConfig = Effects.run loadConfigEff
-
-partial shred_config : (Either ConfigError YAMLNode) -> IO (List (String, String))
-shred_config config = 
-  case config of
-    Right yamlDoc =>
-      do putStrLn "Got YAMLNode..."
-         case yamlDoc of
-           YAMLDoc _ yamlMap =>
-             do putStrLn " ... which is a YamlDoc"
-                case yamlMap of
-                  YAMLMap m => pure $ map (\(a,b) => (uns a, uns b)) (m)
-                -- yamlMap is YAMLMap (List (YAMLNode, YAMLNode))
-    Left configError =>
-      do putStrLn "config error"
-         printLn configError
-         pure []
 
 partial get_access_token : IO String
 get_access_token = do
@@ -138,12 +146,7 @@ get_access_token = do
   -- than (eg.) giving an error that we stopped parsing before the
   -- end of the file or that the symbol is invalid. (are they invalid?)
 
-  config <- loadConfig
-
-  config_map <- shred_config config
-
-  putStrLn "config shredded to map:"
-  printLn config_map
+  config_map <- loadConfig
 
 
 -- QUESTION/DISCUSSION: using "Just username" in this let binding
