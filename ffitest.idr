@@ -82,8 +82,8 @@ shred_config config =
          raise "shred_config: error shredding configuration file"
 
 
-partial loadConfigEff : Eff (List (String, String)) [FILE (), STDIO, EXCEPTION TodaybotError]
-loadConfigEff = do
+partial loadConfig : Eff (List (String, String)) [FILE (), STDIO, EXCEPTION TodaybotError]
+loadConfig = do
   config <- readYAMLConfig "secrets.yaml"
   putStrLn "Config is:"
   printLn config
@@ -119,9 +119,6 @@ Adding STDIO to the type signature of loadConfigEff makes this work.
 -}
 
 
-partial loadConfig : IO (List (String, String))
-loadConfig = Effects.run loadConfigEff
-
 partial get_access_token : IO String
 get_access_token = do
 
@@ -150,7 +147,7 @@ get_access_token = do
   -- than (eg.) giving an error that we stopped parsing before the
   -- end of the file or that the symbol is invalid. (are they invalid?)
 
-  config_map <- loadConfig
+  config_map <- run $ loadConfig
 
 
 -- QUESTION/DISCUSSION: using "Just username" in this let binding
