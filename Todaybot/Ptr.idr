@@ -91,9 +91,11 @@ namespace effect
 
   public export data Memory : Effect where
     AllocBytes : SizeT -> sig Memory Ptr
+    DumpBuffer : Ptr -> sig Memory ()
     PokePtr : Ptr -> Ptr -> sig Memory ()
     PeekPtr : Ptr -> sig Memory Ptr
     Free : Ptr -> sig Memory ()
+    CastToString : Ptr -> sig Memory String
 
   public export MEMORY : EFFECT
   MEMORY = MkEff () Memory
@@ -109,6 +111,12 @@ namespace effect
 
   public export free : (base : Ptr) -> Eff () [MEMORY]
   free base = call $ Free base
+
+  public export dump_buffer : Ptr -> Eff () [MEMORY]
+  dump_buffer base = call $ DumpBuffer base
+
+  public export cast_to_string : Ptr -> Eff String [MEMORY]
+  cast_to_string base = call $ CastToString base
 
   public export Handler Memory IO where
     handle () (AllocBytes size) k = do
@@ -126,4 +134,12 @@ namespace effect
     handle () (Free base) k = do
       free base
       k () ()
+
+    handle () (DumpBuffer base) k = do
+      foreign FFI_C "dump_buffer" (Ptr -> IO ()) base
+      k () ()
+
+    handle () (CastToString base) k = do
+      s <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) base
+      k s ()
 

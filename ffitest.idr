@@ -283,7 +283,7 @@ get_access_token = do
   -- it is safe to unalloc?) - regions/linear types?
 
 
-  foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
+  run $ dump_buffer content_buf_ptr
 
   -- QUESTION/DISCUSSION: what's the right/best way to get an
   -- idris string out of this buffer? (there might be encoding
@@ -299,7 +299,7 @@ get_access_token = do
              of it) it should be ok for me to free() it right after.
 -}
 
-  response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
+  response_body <- run $ cast_to_string content_buf_ptr
 
   run $ do
     putStrLn "idris-side: buffer string is: "
@@ -419,9 +419,9 @@ get_hot_posts access_token = do
 -- in the direction, perhaps, that it is large do blocks that are
 -- causing a problem?
 
-  foreign FFI_C "dump_buffer" (Ptr -> IO ()) content_buf_ptr
+  run $ dump_buffer content_buf_ptr
 
-  response_body <- foreign FFI_C "cast_to_string_helper" (Ptr -> IO String) content_buf_ptr
+  response_body <- run $ cast_to_string content_buf_ptr
 
   content_buf <- run $ peek_ptr content_buf_ptr
   run $ free content_buf
