@@ -557,7 +557,7 @@ get_all_hot_posts psm = case psm of
     Nothing => []
 
 -- TODO: access_token should be in some kind of environment.
-partial processPost : String -> JsonValue -> IO ()
+partial processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL]
 processPost access_token post = do
 
   -- now extract the heading from this:
@@ -616,12 +616,12 @@ processPost access_token post = do
   -- convert it into the same Date as used in the time parser
   -- so that 'Eq' can be used.
 
-  now <- run $ getTime
+  now <- getTime
   
   putStrLn "Current time, as TimeT:"
   printLn now
 
-  nowDate <- run $ timeTToDate now
+  nowDate <- timeTToDate now
   putStrLn "Current time, as Date:"
   printLn nowDate
 
@@ -638,7 +638,7 @@ processPost access_token post = do
   if (Just nowDate == postdate && postflair == Nothing) 
     then do
       putStrLn "Rule TODAY firing: Set today flair"
-      run $ forceFlair access_token post "Today" "today"
+      forceFlair access_token post "Today" "today"
     else putStrLn "Rule TODAY not firing"
 
 
@@ -657,7 +657,7 @@ processPost access_token post = do
                             || postflair == Nothing )
     then do
       putStrLn "Rule PAST firing"
-      run $ forceFlair access_token post "Archived" "archived" 
+      forceFlair access_token post "Archived" "archived" 
     else putStrLn "Rule PAST not firing"
 
   -- there is also a non-date transition:
@@ -797,8 +797,39 @@ Can't find implementation for Show (Maybe b)
 
   let ps = get_all_hot_posts maybe_hot_post_Listing
 
-  for ps (processPost access_token)
+  -- QUESTION/DISCUSSION: I fiddled round with this to try to
+  -- eliminate the ppppp and do composition, but I got some
+  -- errors I didn't understand: I think coming from me being
+  -- to used to monads.
 
+  -- WORKS: for ps (\ppppp => run $ processPost access_token ppppp)
+
+  -- DOESNT WORK: for ps (\ppppp => (run . (processPost access_token)) ppppp)
+  {- gives the following - as if it can't unify the two type sigs even though
+     I think it should be able to? processPost isn't fully applied in the
+     second case, and I wonder if that is causing problems because of
+     dependent types?
+
+When checking an application of function Prelude.Basics..:
+        Type mismatch between
+                JsonValue ->
+                Eff ()
+                    [STDIO,
+                     TIME,
+                     EXCEPTION String,
+                     MEMORY,
+                     CURL] (Type of processPost _)
+        and
+                a1 -> EffM m a xs xs' (Expected type)
+-}
+
+  -- DOESN'T WORK: can't commute run and for. But i want to, because
+  -- I want to have the 'for' way outside up at main... for needs an
+  -- Applicative, and Eff is not that... what is the Eff equivalent
+  -- idiom for doing this?
+  -- run  $ for ps (\ppppp => (processPost access_token ppppp))
+
+  for ps (\ppppp => (run (processPost access_token ppppp)))
   pure ()
 
 -- QUESTION/DISCUSSION
