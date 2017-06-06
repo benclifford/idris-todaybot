@@ -477,7 +477,7 @@ list values not list types.
 -}
 
 -- partial due to 'fromJust'
-partial forceFlair : String -> JsonValue -> String -> String -> IO ()
+partial forceFlair : String -> JsonValue -> String -> String -> Eff () [STDIO, CURL, EXCEPTION String, MEMORY]
 forceFlair access_token post new_flair new_css_class = do
 
   let fullname = fromJust $ do  
@@ -493,52 +493,51 @@ forceFlair access_token post new_flair new_css_class = do
   -- happen on the same handle? if so it would be advantageous
   -- to share the handle for flair setting with the handle used
   -- for retrieving the post list.
-  easy_handle <- run $ curlEasyInit
-  run $ checkPointerNotNull easy_handle
+  easy_handle <- curlEasyInit
+  checkPointerNotNull easy_handle
 
   -- TODO: all these rets need testing.
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/api/flair")
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  checkCurlRet ret
 
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionCopyPostFields ("api_type=json&link=" ++ fullname ++ "&text=" ++ new_flair ++ "&css_class=" ++ new_css_class)
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionVerbose 1
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionVerbose 1
+  checkCurlRet ret
 
   slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
-  run $ checkPointerNotNull slist
+  checkPointerNotNull slist
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionHttpHeader slist
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  checkCurlRet ret
 
-  content_buf_ptr <- run $ alloc_bytes 16
-  run $ checkPointerNotNull content_buf_ptr
+  content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
 
-  run $ poke_ptr content_buf_ptr null_pointer
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
-  run $ checkCurlRet ret
+  poke_ptr content_buf_ptr null_pointer
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
-  ret <- run $ curlEasyPerform easy_handle
-  run $ checkCurlRet ret
+  ret <- curlEasyPerform easy_handle
+  checkCurlRet ret
 
-  content_buf <- run $ peek_ptr content_buf_ptr
-  run $ free content_buf
-  run $ free content_buf_ptr
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
 
-  run $ curlEasyCleanup easy_handle
-  run $ curlSListFreeAll slist
+  curlEasyCleanup easy_handle
+  curlSListFreeAll slist
 
   putStrLn "End of forceFlair"
-
 
 
 -- QUESTION/DISCUSSION:
@@ -639,7 +638,7 @@ processPost access_token post = do
   if (Just nowDate == postdate && postflair == Nothing) 
     then do
       putStrLn "Rule TODAY firing: Set today flair"
-      forceFlair access_token post "Today" "today"
+      run $ forceFlair access_token post "Today" "today"
     else putStrLn "Rule TODAY not firing"
 
 
@@ -658,7 +657,7 @@ processPost access_token post = do
                             || postflair == Nothing )
     then do
       putStrLn "Rule PAST firing"
-      forceFlair access_token post "Archived" "archived" 
+      run $ forceFlair access_token post "Archived" "archived" 
     else putStrLn "Rule PAST not firing"
 
   -- there is also a non-date transition:
