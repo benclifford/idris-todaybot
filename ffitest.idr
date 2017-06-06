@@ -351,49 +351,49 @@ sure why this doesn't work...
 
   pure access_token
 
-get_hot_posts : String -> IO String
+get_hot_posts : String -> Eff String [CURL, EXCEPTION String, MEMORY, STDIO]
 get_hot_posts access_token = do
   -- now we can make calls to oauth.reddit.com using the access token
 
   -- getHotPosts using libcurl.
 
-  easy_handle <- run $ curlEasyInit
+  easy_handle <- curlEasyInit
 
   -- TODO: better abstractions for this slist? Can we do it functionally
   -- using unsafePerformIO? and using a better pointer type rather than
   -- Ptr.
 
-  slist <- run $ curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
+  slist <- curlSListAppend null_pointer ("Authorization: " ++ "bearer " ++ access_token)
 
   -- TODO: factor this for calling on any http request
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionWriteFunction write_callback
+  checkCurlRet ret
 
-  content_buf_ptr <- run $ alloc_bytes 16
-  run $ checkPointerNotNull content_buf_ptr
-  run $ poke_ptr content_buf_ptr null_pointer
+  content_buf_ptr <- alloc_bytes 16
+  checkPointerNotNull content_buf_ptr
+  poke_ptr content_buf_ptr null_pointer
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionWriteData content_buf_ptr
+  checkCurlRet ret
 
   -- TODO: factor into "set todaybot useragent header"
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUserAgent "idris-todaybot DEVELOPMENT/TESTING by u/benclifford"
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionHttpHeader slist
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
+  checkCurlRet ret
 
-  ret <- run $ curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
-  run $ checkCurlRet ret
+  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
+  checkCurlRet ret
 
   putStrLn "Performing easy session (2)"
 
-  ret <- run $ curlEasyPerform easy_handle
-  run $ checkCurlRet ret
+  ret <- curlEasyPerform easy_handle
+  checkCurlRet ret
 
-  run $ curlEasyCleanup easy_handle
+  curlEasyCleanup easy_handle
   -- slist is not allowed to be released until after the handle
-  run $ curlSListFreeAll slist
+  curlSListFreeAll slist
 
 -- DISCUSSION:
 -- with everything up to here mostly in a big main function
@@ -415,13 +415,13 @@ get_hot_posts access_token = do
 -- in the direction, perhaps, that it is large do blocks that are
 -- causing a problem?
 
-  run $ dump_buffer content_buf_ptr
+  dump_buffer content_buf_ptr
 
-  response_body <- run $ cast_to_string content_buf_ptr
+  response_body <- cast_to_string content_buf_ptr
 
-  content_buf <- run $ peek_ptr content_buf_ptr
-  run $ free content_buf
-  run $ free content_buf_ptr
+  content_buf <- peek_ptr content_buf_ptr
+  free content_buf
+  free content_buf_ptr
 
   pure response_body
 
@@ -678,7 +678,7 @@ oneshotMain = do
   access_token <- run get_access_token
 
   -- finally, we're logged in.
-  hot_posts <- get_hot_posts access_token
+  hot_posts <- run $ get_hot_posts access_token
 
   -- QUESTION/DISCUSSION: the string that is returned from here
   -- is somehow invalid in so much as it causes a SIGSEGV when
