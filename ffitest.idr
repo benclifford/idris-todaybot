@@ -616,12 +616,12 @@ processPost access_token post = do
   -- convert it into the same Date as used in the time parser
   -- so that 'Eq' can be used.
 
-  now <- getTime
+  now <- run $ getTime
   
   putStrLn "Current time, as TimeT:"
   printLn now
 
-  nowDate <- timeTToDate now
+  nowDate <- run $ timeTToDate now
   putStrLn "Current time, as Date:"
   printLn nowDate
 

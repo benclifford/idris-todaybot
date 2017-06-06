@@ -148,3 +148,31 @@ When checking argument fty to function foreign:
   -- QUESTION/DISCUSSION: are these casts safe? I think so because
   -- we're moving to a "bigger" type.
   pure (MkDate (cast y+1900) (cast m+1) (cast d))
+
+namespace effect
+
+  %access public export
+
+  data Time : Effect where
+    GetTime : sig Time TimeT
+    TimeTToDate : TimeT -> sig Time Date
+
+  TIME : EFFECT
+  TIME = MkEff () Time
+
+  getTime : Eff TimeT [TIME]
+  getTime = call GetTime
+
+  timeTToDate : TimeT -> Eff Date [TIME]
+  timeTToDate timet = call $ TimeTToDate timet
+
+  Handler Time IO where
+
+    handle () GetTime k = do
+      t <- getTime
+      k t ()
+
+    handle () (TimeTToDate timet) k = do
+      d <- timeTToDate timet
+      k d ()
+
