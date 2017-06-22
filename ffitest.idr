@@ -671,6 +671,32 @@ processPost access_token post = do
 
   pure ()
 
+-- QUESTION/DISCUSSION: Much messing round with this type
+-- signature. For example, I wanted:
+-- sequenceEff : List (Eff () e) -> Eff () e
+-- but as Eff programs are typed by the monad that they
+-- are over, the hidden monad parameter in the LHSes doesn't
+-- unify with the hidden monad in the RHS.
+-- EffT is Eff with the monad specified, which means we can
+-- explicitly use the same variable on both sides.
+
+-- QUESTION/DISCUSSION: Why does EffM have a monad parameter
+-- in it? It 
+-- seems to be needed in a constaint for the 'New' EffM
+-- constructor, which only lets you introduce effects which
+-- have a handler in m, I think. That jars a bit with my
+-- expectations of handling effects (which is what? perhaps
+-- because I'm also used to plugging in interpreters rather
+-- than having them defined once per underlying monad, which
+-- I guess is what this constraint is for: saying that
+-- it can be handled).
+
+sequenceEff : List (EffT m a e) -> EffT m (List a) e
+sequenceEff [] = pure []
+sequenceEff (x :: xs) = do
+  v <- x
+  vs <- sequenceEff xs
+  pure (v :: vs)
 
 partial oneshotMain : IO ()
 oneshotMain = do
@@ -829,7 +855,15 @@ When checking an application of function Prelude.Basics..:
   -- idiom for doing this?
   -- run  $ for ps (\ppppp => (processPost access_token ppppp))
 
-  for ps (\ppppp => (run (processPost access_token ppppp)))
+  -- The 'Eff' library defines <*> etc but not as Applicatives,
+  -- instead using ad-hoc overloading. Which means that things
+  -- like 'for' need to be re-defined rather than re-used.
+  -- Perhaps something as horrific as a source code copy(?)
+  -- for ps (\ppppp => (run (processPost access_token ppppp)))
+
+  let effectful_acts = map (\ppppp => processPost access_token ppppp) ps
+  -- for effectful_acts (\ea => run ea)
+  run $ sequenceEff effectful_acts
   pure ()
 
 -- QUESTION/DISCUSSION
