@@ -850,12 +850,25 @@ forever act = do
   act
   forever act
 
+-- QUESTION/DISCUSSION this is another case where I seem
+-- to be forced to move the effectful 'do' block into its
+-- own function with a type signature, rather than
+-- being able to specify the type inline with a 'the'
+-- annotation like this:
+--
+-- the (Eff () [TIME, STDIO]) $ do
+--
+-- At least it can go in a where clause.
+
 sleepAWhile : IO ()
-sleepAWhile = do
-  putStrLn "sleep starting"
-  foreign FFI_C "sleep" (Int -> IO ()) (7 * 60) -- delay measured in seconds
-  -- QUESTION/DISCUSSION: some of this FFI is crazy easy.
-  putStrLn "sleep done"
+sleepAWhile = run sleepAWhileEff
+  where
+    sleepAWhileEff : Eff () [TIME, STDIO]
+    sleepAWhileEff = do
+      putStrLn "sleep starting"
+      sleep (7*60)
+      putStrLn "sleep done"
+
 
 partial main : IO ()
 main = do

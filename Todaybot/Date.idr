@@ -156,12 +156,17 @@ namespace effect
   data Time : Effect where
     GetTime : sig Time TimeT
     TimeTToDate : TimeT -> sig Time Date
+    Sleep : Int -> sig Time ()
 
   TIME : EFFECT
   TIME = MkEff () Time
 
   getTime : Eff TimeT [TIME]
   getTime = call GetTime
+
+  -- duration is measured in seconds
+  sleep : Int -> Eff () [TIME]
+  sleep duration = call (Sleep duration)
 
   timeTToDate : TimeT -> Eff Date [TIME]
   timeTToDate timet = call $ TimeTToDate timet
@@ -176,3 +181,7 @@ namespace effect
       d <- timeTToDate timet
       k d ()
 
+    handle () (Sleep duration) k = do
+      foreign FFI_C "sleep" (Int -> IO ()) duration
+      -- QUESTION/DISCUSSION: some of this FFI is crazy easy.
+      k () ()
