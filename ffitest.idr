@@ -35,6 +35,7 @@ import Effect.StdIO
 import Todaybot.Curl
 import Todaybot.CurlEffect
 import Todaybot.Date
+import Todaybot.Logging
 import Todaybot.Morph
 import Todaybot.Ptr
 import Todaybot.TitleParser
@@ -70,29 +71,29 @@ partial shred_config : (Either ConfigError YAMLNode) -> Eff (List (String, Strin
 shred_config config =
   case config of
     Right yamlDoc =>
-      do putStrLn "Got YAMLNode..."
+      do logInfo "Got YAMLNode..."
          case yamlDoc of
            YAMLDoc _ yamlMap =>
-             do putStrLn " ... which is a YamlDoc"
+             do logInfo " ... which is a YamlDoc"
                 case yamlMap of
                   YAMLMap m => pure $ map (\(a,b) => (uns a, uns b)) (m)
                 -- yamlMap is YAMLMap (List (YAMLNode, YAMLNode))
     Left configError =>
-      do putStrLn "config error"
-         printLn configError
+      do logError "config error"
+         logError (show configError)
          raise "shred_config: error shredding configuration file"
 
 
 partial loadConfig : Eff (List (String, String)) [FILE (), STDIO, EXCEPTION TodaybotError]
 loadConfig = do
   config <- readYAMLConfig "secrets.yaml"
-  putStrLn "Config is:"
-  printLn config
+  logInfo "Config is:"
+  logInfo (show config)
 
   config_map <- shred_config config
 
-  putStrLn "config shredded to map:"
-  printLn config_map
+  logInfo "config shredded to map:"
+  logInfo (show config_map)
 
   pure config_map
 
@@ -127,7 +128,7 @@ get_access_token = do
   -- Probably, yes - to get away from using IO everywhere, like
   -- in the Haskell version.
 
-  putStrLn "reading config"
+  logInfo "reading config"
 
   -- QUESTION/FOR DISCUSSION
   -- I attempted to use the same syntax as the Haskell
@@ -163,12 +164,12 @@ get_access_token = do
   let app_id = fromJust $ lookup "appid" config_map
   let app_token = fromJust $ lookup "appsecret" config_map
 
-  putStrLn "looked up username:"
-  printLn username
+  logInfo "looked up username:"
+  logInfo (show username)
 
   -- now init an easy session, giving an easy handle.
 
-  putStrLn "Initialising easy session"
+  logInfo "Initialising easy session"
 
   -- QUESTION/DISCUSSION
   -- Trying to put these two into a single `run $ do` block does not
@@ -260,7 +261,7 @@ get_access_token = do
   -- or can I use "%wrapper" to get the address at run time and then
   -- pass that in as write_callback?
 
-  putStrLn "Performing easy session"
+  logInfo "Performing easy session"
 
   ret <- curlEasyPerform easy_handle
   checkCurlRet ret
@@ -300,8 +301,8 @@ get_access_token = do
 
   response_body <- cast_to_string content_buf_ptr
 
-  putStrLn "idris-side: buffer string is: "
-  putStrLn response_body
+  logInfo "idris-side: buffer string is: "
+  logInfo response_body
 
   content_buf <- peek_ptr content_buf_ptr
   free content_buf
@@ -315,8 +316,8 @@ get_access_token = do
   let asJSON = Config.JSON.fromString response_body
 
 
-  putStrLn "buffer as json:"
-  printLn asJSON
+  logInfo "buffer as json:"
+  logInfo (show asJSON)
 
   -- QUESTION/COMMENT: using this case as a let, and not returning
   -- IO actions doesn't seem to work for me, with an incomplete
@@ -346,8 +347,8 @@ sure why this doesn't work...
  
   let (Just (JsonString access_token)) = Data.AVL.Dict.lookup "access_token" dict
  
-  putStrLn "access_token is:"
-  putStrLn access_token
+  logInfo "access_token is:"
+  logInfo access_token
 
   pure access_token
 
@@ -386,7 +387,7 @@ get_hot_posts access_token = do
   ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
   checkCurlRet ret
 
-  putStrLn "Performing easy session (2)"
+  logInfo "Performing easy session (2)"
 
   ret <- curlEasyPerform easy_handle
   checkCurlRet ret
@@ -537,7 +538,7 @@ forceFlair access_token post new_flair new_css_class = do
   curlEasyCleanup easy_handle
   curlSListFreeAll slist
 
-  putStrLn "End of forceFlair"
+  logInfo "End of forceFlair"
 
 
 -- QUESTION/DISCUSSION:
@@ -585,14 +586,14 @@ processPost access_token post = do
         
         pure (text,css)
 
-  putStrLn "Post title:"
-  printLn posttitle
-  putStrLn "Post flair:"
-  printLn postflair
+  logInfo "Post title:"
+  logInfo (show posttitle)
+  logInfo "Post flair:"
+  logInfo (show postflair)
 
   let postdate = posttitle >>= titleToDate
-  putStrLn "Post date:"
-  printLn postdate
+  logInfo "Post date:"
+  logInfo (show postdate)
 
   -- next, what is the current date? (we don't need the time
   -- of day, but we do need it to be accurate in the local
@@ -618,12 +619,12 @@ processPost access_token post = do
 
   now <- getTime
   
-  putStrLn "Current time, as TimeT:"
-  printLn now
+  logInfo "Current time, as TimeT:"
+  logInfo (show now)
 
   nowDate <- timeTToDate now
-  putStrLn "Current time, as Date:"
-  printLn nowDate
+  logInfo "Current time, as Date:"
+  logInfo (show nowDate)
 
   -- so now we have flair, and dates. we can do some state transition
   -- rules thing to decide what posts get changed.
@@ -637,9 +638,9 @@ processPost access_token post = do
   -- today but blank flair?
   if (Just nowDate == postdate && postflair == Nothing) 
     then do
-      putStrLn "Rule TODAY firing: Set today flair"
+      logInfo "Rule TODAY firing: Set today flair"
       forceFlair access_token post "Today" "today"
-    else putStrLn "Rule TODAY not firing"
+    else logInfo "Rule TODAY not firing"
 
 
   -- in the past but (still) has today flair?
@@ -656,9 +657,9 @@ processPost access_token post = do
   if inpast == Just True && (  postflair == Just ("Today", "today")
                             || postflair == Nothing )
     then do
-      putStrLn "Rule PAST firing"
+      logInfo "Rule PAST firing"
       forceFlair access_token post "Archived" "archived" 
-    else putStrLn "Rule PAST not firing"
+    else logInfo "Rule PAST not firing"
 
   -- there is also a non-date transition:
   -- is this an interest check? (actually, this is distinct from
@@ -739,8 +740,8 @@ oneshotMain = do
   -- maybe this should be an exception effect rather than discarding
   -- the error info?
 
-  putStrLn "hot posts as json:"
-  printLn m_hot_posts_as_json
+  logInfo "hot posts as json:"
+  logInfo (show m_hot_posts_as_json)
 
   -- so we have this JSON structure, but now what can we do
   -- with it?
@@ -789,8 +790,8 @@ When checking an application of function Prelude.Monad.>>=:
   -- print out the first one. (although actually I'll want to
   -- do some action over *all* of them)
 
-  putStrLn "maybe_hot_post_Listing = "
-  printLn maybe_hot_post_Listing
+  logInfo "maybe_hot_post_Listing = "
+  logInfo (show maybe_hot_post_Listing)
 
   -- TODO: factor as maybeHead and then use monadic join?
 
@@ -897,9 +898,9 @@ forever act = do
 
 sleepAWhile : Eff () [TIME, STDIO]
 sleepAWhile = do
-  putStrLn "sleep starting"
+  logInfo "sleep starting"
   sleep (7*60)
-  putStrLn "sleep done"
+  logInfo "sleep done"
 
 
 partial main : IO ()
@@ -909,13 +910,13 @@ main = run go
 
  partial go : Eff () [STDIO, CURL, FILE (), EXCEPTION String, MEMORY, TIME]
  go = do
-  putStrLn "idris ffi test start"
-  putStrLn $ "calling global init for curl"
+  logInfo "idris ffi test start"
+  logInfo "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
   ret <- curlGlobalInit
-  printLn ret
+  logInfo (show ret)
   -- TODO: check ret == 0
-  putStrLn $ "called global init for curl"
+  logInfo "called global init for curl"
 
   {- QUESTION/DISCUSION: in relation to other comment about
      needing to put in 'where' clauses for contained do blocks,
@@ -931,9 +932,9 @@ main = run go
     oneshotMain
     sleepAWhile
 
-  putStrLn "Shutting down libcurl"
+  logInfo "Shutting down libcurl"
   curlGlobalCleanup
-  putStrLn "idris ffi test end"
+  logInfo "idris ffi test end"
 
 
 -- QUESTION/DISCUSSION
