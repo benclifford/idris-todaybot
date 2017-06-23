@@ -698,12 +698,12 @@ sequenceEff (x :: xs) = do
   vs <- sequenceEff xs
   pure (v :: vs)
 
-partial oneshotMain : IO ()
+partial oneshotMain : Eff () [STDIO, FILE (), EXCEPTION String, CURL, MEMORY, TIME]
 oneshotMain = do
-  access_token <- run get_access_token
+  access_token <- get_access_token
 
   -- finally, we're logged in.
-  hot_posts <- run $ get_hot_posts access_token
+  hot_posts <- get_hot_posts access_token
 
   -- QUESTION/DISCUSSION: the string that is returned from here
   -- is somehow invalid in so much as it causes a SIGSEGV when
@@ -863,23 +863,24 @@ When checking an application of function Prelude.Basics..:
 
   let effectful_acts = map (\ppppp => processPost access_token ppppp) ps
   -- for effectful_acts (\ea => run ea)
-  run $ sequenceEff effectful_acts
+  sequenceEff effectful_acts
   pure ()
 
 -- QUESTION/DISCUSSION
 -- implementing: forever act = act *> forever act
 -- (which would work in Haskell) causes a segfault here
--- because it tries to construct the entire IO action
+-- because it tries to construct the entire (IO originally
+-- but now Eff) action
 -- (i.e. unrolling an infinite loop). Use of >>= does not
--- construct the second IO action until the result of the
--- first IO action is known, in order to pass that value
+-- construct the second action until the result of the
+-- first action is known, in order to pass that value
 -- into the constructing function.
 -- This is a strictness/laziness issue that I wasn't
 -- expecting - maybe it's of interest when thinking about
 -- Haskell's ApplicativeDo notation too, because different
 -- equivalences apply here.
 
-partial forever : IO () -> IO ()
+partial forever : EffT m () e -> EffT m () e
 forever act = do
   act
   forever act
@@ -894,14 +895,11 @@ forever act = do
 --
 -- At least it can go in a where clause.
 
-sleepAWhile : IO ()
-sleepAWhile = run sleepAWhileEff
-  where
-    sleepAWhileEff : Eff () [TIME, STDIO]
-    sleepAWhileEff = do
-      putStrLn "sleep starting"
-      sleep (7*60)
-      putStrLn "sleep done"
+sleepAWhile : Eff () [TIME, STDIO]
+sleepAWhile = do
+  putStrLn "sleep starting"
+  sleep (7*60)
+  putStrLn "sleep done"
 
 
 partial main : IO ()
@@ -915,7 +913,17 @@ main = do
   -- TODO: check ret == 0
   putStrLn $ "called global init for curl"
 
-  forever $ do
+  {- QUESTION/DISCUSION: in relation to other comment about
+     needing to put in 'where' clauses for contained do blocks,
+     it appears that this particular do block doesn't need one...
+
+  forever $ run $ do
+    oneshotMain
+    sleepAWhile
+
+  -}
+
+  run $ forever $ do
     oneshotMain
     sleepAWhile
 
