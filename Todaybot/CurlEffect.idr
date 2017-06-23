@@ -14,6 +14,8 @@ import Todaybot.Ptr
 -- right signature, and a data type representation of
 -- those function calls...
 data Curl : Effect where
+  CurlGlobalInit : sig Curl Int
+  CurlGlobalCleanup : sig Curl ()
   CurlEasyInit : sig Curl EasyHandle
   CurlEasySetopt : EasyHandle -> (opt : CurlOption) -> curlOptionType opt -> sig Curl Int
   CurlEasyPerform : EasyHandle -> sig Curl Int
@@ -24,6 +26,12 @@ data Curl : Effect where
 
 CURL : EFFECT
 CURL = MkEff () Curl
+
+curlGlobalInit : Eff Int [CURL]
+curlGlobalInit = call CurlGlobalInit
+
+curlGlobalCleanup : Eff () [CURL]
+curlGlobalCleanup = call CurlGlobalCleanup
 
 curlEasyInit : Eff Ptr [CURL]
 curlEasyInit = call CurlEasyInit
@@ -45,6 +53,14 @@ curlSListAppend : Ptr -> String -> Eff Ptr [CURL]
 curlSListAppend l s = call $ CurlSListAppend l s
 
 Handler Curl IO where
+
+  handle () CurlGlobalInit k = do
+    r <- Todaybot.Curl.curlGlobalInit
+    k r ()
+
+  handle () CurlGlobalCleanup k = do
+    Todaybot.Curl.curlGlobalCleanup
+    k () ()
 
   handle () CurlEasyInit k = do
     h <- Todaybot.Curl.curlEasyInit

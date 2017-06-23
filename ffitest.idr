@@ -908,7 +908,7 @@ main = do
 
   putStrLn $ "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- curlGlobalInit
+  ret <- run curlGlobalInit
   printLn ret
   -- TODO: check ret == 0
   putStrLn $ "called global init for curl"
@@ -928,7 +928,7 @@ main = do
     sleepAWhile
 
   putStrLn "Shutting down libcurl"
-  curlGlobalCleanup
+  run curlGlobalCleanup
   putStrLn "idris ffi test end"
 
 
