@@ -120,7 +120,7 @@ a 'do' block which is only typed as [FILE ()]
 Adding STDIO to the type signature of loadConfigEff makes this work.
 -}
 
-partial get_access_token : Eff String [STDIO, FILE (), EXCEPTION String, CURL, MEMORY]
+partial get_access_token : Eff String [STDIO, FILE (), EXCEPTION String, CURL CurlInitOK, MEMORY]
 get_access_token = do
 
   -- QUESTION/DISCUSSION this uses effects, but should I spread
@@ -352,7 +352,7 @@ sure why this doesn't work...
 
   pure access_token
 
-get_hot_posts : String -> Eff String [CURL, EXCEPTION String, MEMORY, STDIO]
+get_hot_posts : String -> Eff String [CURL CurlInitOK, EXCEPTION String, MEMORY, STDIO]
 get_hot_posts access_token = do
   -- now we can make calls to oauth.reddit.com using the access token
 
@@ -478,7 +478,7 @@ list values not list types.
 -}
 
 -- partial due to 'fromJust'
-partial forceFlair : String -> JsonValue -> String -> String -> Eff () [STDIO, CURL, EXCEPTION String, MEMORY]
+partial forceFlair : String -> JsonValue -> String -> String -> Eff () [STDIO, CURL CurlInitOK, EXCEPTION String, MEMORY]
 forceFlair access_token post new_flair new_css_class = do
 
   let fullname = fromJust $ do  
@@ -558,7 +558,7 @@ get_all_hot_posts psm = case psm of
     Nothing => []
 
 -- TODO: access_token should be in some kind of environment.
-partial processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL]
+partial processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL CurlInitOK]
 processPost access_token post = do
 
   -- now extract the heading from this:
@@ -699,7 +699,7 @@ sequenceEff (x :: xs) = do
   vs <- sequenceEff xs
   pure (v :: vs)
 
-partial oneshotMain : Eff () [STDIO, FILE (), EXCEPTION String, CURL, MEMORY, TIME]
+partial oneshotMain : Eff () [STDIO, FILE (), EXCEPTION String, CURL CurlInitOK, MEMORY, TIME]
 oneshotMain = do
   access_token <- get_access_token
 
@@ -908,12 +908,13 @@ main = run go
 
  where
 
- partial go : Eff () [STDIO, CURL, FILE (), EXCEPTION String, MEMORY, TIME]
+ partial go : Eff () [STDIO, CURL CurlNotInit, FILE (), EXCEPTION String, MEMORY, TIME]
  go = do
   logInfo "idris ffi test start"
   logInfo "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
   ret <- curlGlobalInit
+  curlEasyInit
   logInfo (show ret)
   -- TODO: check ret == 0
   logInfo "called global init for curl"
