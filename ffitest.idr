@@ -903,12 +903,16 @@ sleepAWhile = do
 
 
 partial main : IO ()
-main = do
-  putStrLn "idris ffi test start"
+main = run go
 
+ where
+
+ partial go : Eff () [STDIO, CURL, FILE (), EXCEPTION String, MEMORY, TIME]
+ go = do
+  putStrLn "idris ffi test start"
   putStrLn $ "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
-  ret <- run curlGlobalInit
+  ret <- curlGlobalInit
   printLn ret
   -- TODO: check ret == 0
   putStrLn $ "called global init for curl"
@@ -923,12 +927,12 @@ main = do
 
   -}
 
-  run $ forever $ do
+  forever $ do
     oneshotMain
     sleepAWhile
 
   putStrLn "Shutting down libcurl"
-  run curlGlobalCleanup
+  curlGlobalCleanup
   putStrLn "idris ffi test end"
 
 
