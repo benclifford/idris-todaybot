@@ -928,7 +928,7 @@ main = do
     sleepAWhile
 
   putStrLn "Shutting down libcurl"
-  ret <- curlGlobalCleanup
+  curlGlobalCleanup
   putStrLn "idris ffi test end"
 
 
