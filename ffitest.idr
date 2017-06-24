@@ -913,11 +913,30 @@ main = run go
   logInfo "idris ffi test start"
   logInfo "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
+
+  {- QUESTION/DISCUSSION: using 
+  Nothing <- curlGlobalInit | Just v => logError "Global initialisation of curl failed."
+  or
+  Nothing <- curlGlobalInit
+  here does not seem to behave the same as its alleged desugaring which
+  does work. The effect types don't seem to line up.
+  -}
+
+{-
+  do
+    Nothing <- curlGlobalInit
+-}
+
   ret <- curlGlobalInit
-  curlEasyInit
-  logInfo (show ret)
-  -- TODO: check ret == 0
-  logInfo "called global init for curl"
+  case ret of
+   Nothing => do
+
+  
+  -- Nothing bind here means that we got no error
+
+    curlEasyInit
+    logInfo (show ret)
+    logInfo "called global init for curl"
 
   {- QUESTION/DISCUSION: in relation to other comment about
      needing to put in 'where' clauses for contained do blocks,
@@ -929,13 +948,13 @@ main = run go
 
   -}
 
-  forever $ do
-    oneshotMain
-    sleepAWhile
+    forever $ do
+      oneshotMain
+      sleepAWhile
 
-  logInfo "Shutting down libcurl"
-  curlGlobalCleanup
-  logInfo "idris ffi test end"
+    logInfo "Shutting down libcurl"
+    curlGlobalCleanup
+    logInfo "idris ffi test end"
 
 
 -- QUESTION/DISCUSSION

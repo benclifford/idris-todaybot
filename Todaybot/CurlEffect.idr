@@ -8,6 +8,22 @@ import Todaybot.Ptr
 
 %access public export
 
+-- QUESTION/DISCUSSION: lots of exploring about where I can put case
+-- statenments, and what then can be cases of.
+-- for example, case r of 0 / otherwise - in the "otherwise" path, I
+--  can't tell that r != 0, which means I can't prove that the
+-- result type is failure.
+--
+-- so then I tried matching on 'r == 0' / True / False, but that
+-- didn't work either
+--
+-- driving me to try converting r from an Int to an Either Int ()
+-- to turn that into a single failure constructor (Left) to match
+-- on - removing some boolean blindness caused by the r == 0 test, I
+-- hope (although I haven't tried at time of writing)
+
+
+
 -- QUESTION/DISCUSSION: the present implementation is working towards
 -- statically verifying if curl has been initialised or not.
 -- A further development might be to track whether an easy handle
@@ -29,6 +45,10 @@ import Todaybot.Ptr
 -- SList handling might fit in there somehow too? Orthogonally
 -- to easy handles...
 
+globalRetToMaybe : Int -> Maybe Int
+globalRetToMaybe 0 = Nothing -- no error
+globalRetToMaybe r = Just r
+
 data CurlNotInit : Type where
   CurlNotInitV : CurlNotInit
 
@@ -49,7 +69,10 @@ data CurlInitOK : Type where
 -- right signature, and a data type representation of
 -- those function calls...
 data Curl : Effect where
-  CurlGlobalInit : sig Curl Int CurlNotInit CurlInitOK
+  CurlGlobalInit : sig Curl (Maybe Int) CurlNotInit (\ret => case ret of
+                                               Nothing => CurlInitOK
+                                               Just _ => CurlNotInit
+                                            )
   CurlGlobalCleanup : sig Curl () CurlInitOK CurlNotInit
   CurlEasyInit : sig Curl EasyHandle CurlInitOK
   CurlEasySetopt : EasyHandle -> (opt : CurlOption) -> curlOptionType opt -> sig Curl Int CurlInitOK
@@ -62,8 +85,17 @@ data Curl : Effect where
 CURL : Type -> EFFECT
 CURL initState = MkEff initState Curl
 
-curlGlobalInit : Eff Int [CURL CurlNotInit] [CURL CurlInitOK]
-curlGlobalInit = call CurlGlobalInit
+
+-- QUESTION/DISCUSSION: this is a bit boilerplatey:
+-- the effect I'm describing in this simple wrapper is the
+-- same as the effect as described in 'data Curl'
+curlGlobalInit : Eff (Maybe Int) [CURL CurlNotInit] (\ret => [CURL (case ret of
+                                               Nothing => CurlInitOK
+                                               Just _ => CurlNotInit
+                                            )])
+curlGlobalInit = do
+  ret <- call CurlGlobalInit
+  pureM ret
 
 curlGlobalCleanup : Eff () [CURL CurlInitOK] [CURL CurlNotInit]
 curlGlobalCleanup = call CurlGlobalCleanup
@@ -89,9 +121,11 @@ curlSListAppend l s = call $ CurlSListAppend l s
 
 Handler Curl IO where
 
-  handle st CurlGlobalInit k = do
+  handle CurlNotInit CurlGlobalInit k = do
     r <- Todaybot.Curl.curlGlobalInit
-    k r CurlInitOKV -- this should be dependent on r
+    case globalRetToMaybe r of
+      Nothing => k Nothing CurlInitOKV
+      Just r => k (Just r) CurlNotInitV
 
   handle st CurlGlobalCleanup k = do
     Todaybot.Curl.curlGlobalCleanup
