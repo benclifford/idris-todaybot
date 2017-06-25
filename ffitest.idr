@@ -590,7 +590,7 @@ processPost access_token post = do
   logInfo $ "Post flair: " ++ (show postflair)
 
   let postdate = posttitle >>= titleToDate
-  logInfo $ "Post date:" ++ (show postdate)
+  logInfo $ "Post date: " ++ (show postdate)
 
   -- next, what is the current date? (we don't need the time
   -- of day, but we do need it to be accurate in the local
