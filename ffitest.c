@@ -22,13 +22,13 @@ int get_tm_mday(struct tm *t) {
 }
 
 void tzinfo_benc() {
-  printf("tzinfo benc\n");
+  printf("c: tzinfo\n");
 /*
        extern char *tzname[2];
        extern long timezone;
        extern int daylight;
 */
-  printf("timezone = %ld\n", timezone);
+  printf("c: tzinfo: timezone = %ld\n", timezone);
   printf("daylight = %d\n", daylight);
   printf("tzname[0] = %p %s\n", tzname[0], tzname[0]);
   printf("tzname[1] = %p %s\n", tzname[1], tzname[1]);
@@ -37,9 +37,8 @@ void tzinfo_benc() {
 }
 
 struct tm *localtime_r_benc(const time_t *timep, struct tm *result) {
-  printf("BENC localtime_r wrapper\n");
-  printf("BENC: timep = %p\n", timep);
-  printf("BENC: result = %p\n", result);
+  printf("c: localtime_r wrapper p = %p\n", timep);
+  printf("c: localtime_r wrapper result = %p\n", result);
   return localtime_r(timep, result);
 }
 

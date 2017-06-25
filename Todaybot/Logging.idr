@@ -22,3 +22,6 @@ logWarn s = putStrLn $ "WARN: " ++ s
 logInfo : String -> Eff () [STDIO]
 logInfo s = putStrLn $ "INFO: " ++ s
 
+logDebug : String -> Eff () [STDIO]
+logDebug s = putStrLn $ "DEBUG: " ++ s
+

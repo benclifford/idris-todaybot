@@ -586,14 +586,11 @@ processPost access_token post = do
         
         pure (text,css)
 
-  logInfo "Post title:"
-  logInfo (show posttitle)
-  logInfo "Post flair:"
-  logInfo (show postflair)
+  logInfo $ "Post title: " ++ (show posttitle)
+  logInfo $ "Post flair: " ++ (show postflair)
 
   let postdate = posttitle >>= titleToDate
-  logInfo "Post date:"
-  logInfo (show postdate)
+  logInfo $ "Post date:" ++ (show postdate)
 
   -- next, what is the current date? (we don't need the time
   -- of day, but we do need it to be accurate in the local
@@ -619,12 +616,10 @@ processPost access_token post = do
 
   now <- getTime
   
-  logInfo "Current time, as TimeT:"
-  logInfo (show now)
+  logInfo $ "Current time, as TimeT: " ++ (show now)
 
   nowDate <- timeTToDate now
-  logInfo "Current time, as Date:"
-  logInfo (show nowDate)
+  logInfo $ "Current time, as Date: " ++ (show nowDate)
 
   -- so now we have flair, and dates. we can do some state transition
   -- rules thing to decide what posts get changed.
@@ -740,8 +735,7 @@ oneshotMain = do
   -- maybe this should be an exception effect rather than discarding
   -- the error info?
 
-  logInfo "hot posts as json:"
-  logInfo (show m_hot_posts_as_json)
+  logDebug $ "hot posts as json:" ++ (show m_hot_posts_as_json)
 
   -- so we have this JSON structure, but now what can we do
   -- with it?
@@ -910,8 +904,8 @@ main = run go
 
  partial go : Eff () [STDIO, CURL CurlNotInit, FILE (), EXCEPTION String, MEMORY, TIME]
  go = do
-  logInfo "idris ffi test start"
-  logInfo "calling global init for curl"
+  logInfo "idris-todaybot starting"
+  logDebug "calling global init for curl"
   -- TODO: send it proper init code not 3 (extract from lib...)
 
   {- QUESTION/DISCUSSION: using 
