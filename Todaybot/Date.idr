@@ -45,7 +45,7 @@ public export Ord Date where
 -- haskell notation didn't seem to work
 
 public export Show Date where
-  show date = "Todaybot date: " ++ (show . year) date
+  show date = (show . year) date
            ++ "/" ++ (show . month) date
            ++ "/" ++ (show . day) date
 
