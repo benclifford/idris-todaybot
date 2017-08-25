@@ -35,6 +35,7 @@ import Effect.StdIO
 import Todaybot.Curl
 import Todaybot.CurlEffect
 import Todaybot.Date
+import Todaybot.JSON
 import Todaybot.Logging
 import Todaybot.Morph
 import Todaybot.Ptr
@@ -309,7 +310,7 @@ get_access_token = do
   free content_buf_ptr
 
 
-  let asJSON = Config.JSON.fromString response_body
+  let asJSON = Todaybot.JSON.fromString response_body
 
 
   logInfo "buffer as json:"
@@ -380,7 +381,7 @@ get_hot_posts access_token = do
   ret <- curlEasySetopt easy_handle CurlOptionHttpHeader slist
   checkCurlRet ret
 
-  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=30")
+  ret <- curlEasySetopt easy_handle CurlOptionUrl ("https://oauth.reddit.com/r/" ++ subredditName ++ "/hot?limit=10")
   checkCurlRet ret
 
   logInfo "Performing easy session (2)"
@@ -763,7 +764,7 @@ oneshotMain = do
   -- putStrLn "hot posts as idris string:"
   -- print hot_posts
 
-  let e_hot_posts_as_json = Config.JSON.fromString hot_posts
+  let e_hot_posts_as_json = Todaybot.JSON.fromString hot_posts
   logErrorAndContinue e_hot_posts_as_json
 
   let m_hot_posts_as_json = eitherToMaybe e_hot_posts_as_json
