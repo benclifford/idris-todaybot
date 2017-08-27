@@ -309,10 +309,6 @@ get_access_token = do
   free content_buf_ptr
 
 
-  -- TODO: parse out the access_token JSON object field.
-  -- TODO: could do with a JSON parser here... there's one inside
-  -- the config module, though...
-
   let asJSON = Config.JSON.fromString response_body
 
 
