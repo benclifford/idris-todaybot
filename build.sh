@@ -10,7 +10,7 @@ idris -p effects \
       -p config \
       -p lightyear \
       --total \
-      ffitest.idr \
+      Todaybot/Main.idr \
       Todaybot/Ptr.idr \
       Todaybot/TitleParser.idr \
       Todaybot/Morph.idr \
