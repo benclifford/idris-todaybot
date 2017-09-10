@@ -690,6 +690,12 @@ sequenceEff (x :: xs) = do
   vs <- sequenceEff xs
   pure (v :: vs)
 
+logErrorAndContinue : Show err => Either err a -> Eff () [STDIO]
+logErrorAndContinue e_e = 
+  case e_e of
+    Right _ => pure ()
+    Left e => logError $ "hot posts as json reported error: " ++ show e
+
 partial oneshotMain : Eff () [STDIO, FILE (), EXCEPTION String, CURL CurlInitOK, MEMORY, TIME]
 oneshotMain = do
   access_token <- get_access_token
@@ -726,7 +732,10 @@ oneshotMain = do
   -- putStrLn "hot posts as idris string:"
   -- print hot_posts
 
-  let m_hot_posts_as_json = eitherToMaybe (Config.JSON.fromString hot_posts)
+  let e_hot_posts_as_json = Config.JSON.fromString hot_posts
+  logErrorAndContinue e_hot_posts_as_json
+
+  let m_hot_posts_as_json = eitherToMaybe e_hot_posts_as_json
 
   -- maybe this should be an exception effect rather than discarding
   -- the error info?
