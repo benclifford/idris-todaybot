@@ -66,9 +66,9 @@ titleDateParser = do
   many $ noneOf (unpack "[")
   char '['
   d <- dateComponent
-  char '/'
+  sep <- oneOf ['/', '-', '.', '\\']
   m <- dateComponent
-  char '/'
+  char sep
   y <- dateComponent
   char ']'
   many anyChar
