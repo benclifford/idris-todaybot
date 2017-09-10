@@ -28,7 +28,7 @@ public export pureOrFail : Maybe a -> Grammar x False a
 pureOrFail (Just a) = pure a
 pureOrFail (Nothing) = fail "could not parse digit sequence (impossible?)"
 
-partial public export dateComponent : Grammar Char True Integer
+public export dateComponent : Grammar Char True Integer
 dateComponent = do
   syms <- (some . oneOf . unpack) "0123456789"
   let nM = (parsePositive . cast) syms -- cast from List Char to String
@@ -78,7 +78,7 @@ titleDateParser = do
 public export showParseError : Show tok => ParseError tok -> String
 showParseError (Error err toks) = err ++ "(tokens: " ++ show toks ++ ")"
 
-partial public export titleToDate : Maybe String -> Eff Date [EXCEPTION String]
+public export titleToDate : Maybe String -> Eff Date [EXCEPTION String]
 titleToDate m_title = 
   case m_title of
     Nothing => raise "Given no title to parse"
