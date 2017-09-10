@@ -9,6 +9,7 @@ idris -p effects -o test-null-pointer test-null-pointer.idr
 idris -p effects \
       -p config \
       -p lightyear \
+      -p contrib \
       --total \
       Todaybot/Main.idr \
       Todaybot/Ptr.idr \

@@ -553,6 +553,19 @@ get_all_hot_posts psm = case psm of
     Just l => l
     Nothing => []
 
+
+logAndMaybeException : Eff Date [EXCEPTION String] -> Eff (Maybe Date) [STDIO]
+-- this implementation will return a Maybe, and convert exceptions
+-- into Nothing, discarding the log message.
+-- logAndMaybeException act = pure (run act)
+
+logAndMaybeException act =
+  case the (Either String Date) (run act) of
+    Right v => pure (Just v)
+    Left e =>  putStrLn ("logAndMaybeException: " ++ e)
+            *> pure (Nothing)
+
+
 -- TODO: access_token should be in some kind of environment.
 partial processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL CurlInitOK]
 processPost access_token post = do
@@ -585,7 +598,25 @@ processPost access_token post = do
   logInfo $ "Post title: " ++ (show posttitle)
   logInfo $ "Post flair: " ++ (show postflair)
 
-  let postdate = posttitle >>= titleToDate
+  -- QUESTION/DISCUSSION: titleToDate is an effectful action
+  -- that can throw exceptions (and nothing else). Rather than
+  -- interpret these exceptions in IO, for which handling causes
+  -- the program to exit, instead interpret them in a different
+  -- context(?) that gives the exception as a value.
+
+  -- The version that causes the program to exit, and needs the
+  -- Maybe handling to be removed elsewhere - posttitle is always
+  -- a valid value in the case that this does not throw an exception.
+  -- postdate <- titleToDate posttitle
+
+  -- this version gives us a maybe, with Nothing in the case
+  -- of an Exception - which loses the error text.
+  -- let postdate = the (Maybe Date) $ run (titleToDate posttitle)
+
+  -- this version should spit out a log and continue with Nothing
+  -- in the case of no date.
+  postdate <- logAndMaybeException (titleToDate posttitle)
+
   logInfo $ "Post date: " ++ (show postdate)
 
   -- next, what is the current date? (we don't need the time
@@ -636,8 +667,8 @@ processPost access_token post = do
 
   -- in the past but (still) has today flair?
   let inpast = do
-        d <- postdate
-        pure (d < nowDate)
+        date <- postdate
+        pure (date < nowDate)
 
 -- QUESTION/DISCUSSION: ^
 -- when Date doesn't have an ordering instance, then the
