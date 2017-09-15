@@ -12,6 +12,8 @@ import Config.JSON
 -- import Text.Parser
 import Todaybot.XXPARSER
 
+%default total
+
 public export specificChar : Char -> Grammar Char True Char
 specificChar ch = terminal $ \c => case (c == ch) of
   True => Just ch
@@ -181,11 +183,14 @@ Specifically:
     specificCharWS '}'
     pure $ JsonObject $ fromList $ packOnFst llll
 
+  public export arrayVals : Grammar Char False (List Config.JSON.JsonValue)
+  arrayVals = sepBy objectValueSeparator jsonValue
+
   public export jsonArray : Grammar Char True Config.JSON.JsonValue
   jsonArray = do
     specificChar '['
     commit
-    llll <- sepBy objectValueSeparator jsonValue
+    llll <- arrayVals
     specificChar ']'
     pure $ JsonArray llll
 
