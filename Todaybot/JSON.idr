@@ -14,30 +14,32 @@ import Todaybot.XXPARSER
 
 %default total
 
+public export predicateWithName : (Char -> Bool) -> String -> Grammar Char True Char
+predicateWithName pred name =
+      terminal (\c => if pred c then Just c else Nothing)
+  <|> fail ("Expected " ++ name)
+
 public export specificChar : Char -> Grammar Char True Char
-specificChar ch = terminal $ \c => case (c == ch) of
-  True => Just ch
-  False => Nothing
+specificChar ch = predicateWithName
+                    (== ch)
+                    ("specific character " ++ cast ch)
 
 public export notChar : Char -> Grammar Char True Char
-notChar ch = terminal $ \c => case (c /= ch) of
-  True => Just c
-  False => Nothing
+notChar ch = predicateWithName
+               (/= ch)
+               ("anything except character " ++ cast ch) 
 
 public export anyChar : Grammar Char True Char
 anyChar = terminal Just
 
 public export wsChar : Grammar Char True Char
-wsChar = terminal $ \c => case c of
-  ' ' => Just c
-  _ => Nothing
+wsChar = predicateWithName (== ' ') "whitespace"
+
+public export digitChars : List Char
+digitChars = ['0','1','2','3','4','5','6','7','8','9']
 
 public export digit : Grammar Char True Char
-digit = terminal $ \c => case
-    c `elem`  (the (List Char) ['0','1','2','3','4','5','6','7','8','9'])
-  of
-    True => Just c
-    False => Nothing
+digit = predicateWithName (\c => c `elem` digitChars) "a decimal digit"
 
 public export ws : Grammar Char False ()
 ws = do
