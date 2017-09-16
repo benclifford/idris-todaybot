@@ -14,32 +14,36 @@ import Todaybot.XXPARSER
 
 %default total
 
-public export predicateWithName : (Char -> Bool) -> String -> Grammar Char True Char
-predicateWithName pred name =
+{- QUESTION/DISCUSSION: That 'Delay True' appears in the resulting
+   type signature from the use of 'fail'. But I don't understand
+   why there's a Delay in there. Ultimately it seems to work ok,
+   I presume because && Delay True gets evaluated when type checking
+   and has no effect because && True is a no-op.
+-}
+public export ( <?> ) : Grammar a b c -> String -> Grammar a (b && Delay True) c
+p <?> name = p <|> fail ("Expecting " ++ name)
+
+public export predicate : (Char -> Bool) -> Grammar Char True Char
+predicate pred =
       terminal (\c => if pred c then Just c else Nothing)
-  <|> fail ("Expected " ++ name)
 
 public export specificChar : Char -> Grammar Char True Char
-specificChar ch = predicateWithName
-                    (== ch)
-                    ("specific character " ++ cast ch)
+specificChar ch = predicate (== ch) <?> ("specific character " ++ cast ch)
 
 public export notChar : Char -> Grammar Char True Char
-notChar ch = predicateWithName
-               (/= ch)
-               ("anything except character " ++ cast ch) 
+notChar ch = predicate (/= ch) <?> ("anything except character " ++ cast ch) 
 
 public export anyChar : Grammar Char True Char
 anyChar = terminal Just
 
 public export wsChar : Grammar Char True Char
-wsChar = predicateWithName (== ' ') "whitespace"
+wsChar = predicate (== ' ') <?> "whitespace"
 
 public export digitChars : List Char
 digitChars = ['0','1','2','3','4','5','6','7','8','9']
 
 public export digit : Grammar Char True Char
-digit = predicateWithName (\c => c `elem` digitChars) "a decimal digit"
+digit = predicate (\c => c `elem` digitChars) <?> "a decimal digit"
 
 public export ws : Grammar Char False ()
 ws = do
