@@ -912,6 +912,10 @@ When checking an application of function Prelude.Basics..:
 -- Haskell's ApplicativeDo notation too, because different
 -- equivalences apply here.
 
+-- QUESTION: this is not total - it never gives a result
+-- which means that main as a whole is not total.
+-- Is there anything that can be done about this?
+
 partial forever : EffT m () e -> EffT m () e
 forever act = do
   act
@@ -960,6 +964,7 @@ main = run go
 
   ret <- curlGlobalInit
   case ret of
+   Just n => logError $ "Could not initialise libcurl: code " ++ show ret
    Nothing => do
 
   
