@@ -33,9 +33,6 @@ specificChar ch = predicate (== ch) <?> ("specific character " ++ cast ch)
 public export notChar : Char -> Grammar Char True Char
 notChar ch = predicate (/= ch) <?> ("anything except character " ++ cast ch) 
 
-public export anyChar : Grammar Char True Char
-anyChar = terminal Just
-
 public export wsChar : Grammar Char True Char
 wsChar = predicate (== ' ') <?> "whitespace"
 
