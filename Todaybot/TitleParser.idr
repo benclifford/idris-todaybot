@@ -7,7 +7,7 @@ import Data.String
 import Effects
 import Effect.Exception
 
-import Text.Parser
+import Todaybot.XXPARSER
 
 import Todaybot.Date
 import Todaybot.Morph
