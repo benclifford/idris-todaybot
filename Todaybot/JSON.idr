@@ -167,6 +167,15 @@ Specifically:
     specificCharWS '}'
     pure $ JsonObject $ fromList $ packOnFst llll
 
+
+  {- QUESTION/DISCUSSION:
+    This works, but is not proved as total, when arrayVal is
+    manually inlined in jsonArray. I initially thought this was
+    because a different type signature was being inferred but
+    even if I use `the` inline to force the same type signature,
+    it does not check as total.
+  -}
+
   public export arrayVals : Grammar Char False (List Config.JSON.JsonValue)
   arrayVals = sepBy objectValueSeparator jsonValue
 
