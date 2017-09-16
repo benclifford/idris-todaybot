@@ -300,3 +300,48 @@ maybe : Grammar tok True a
 maybe p =
       (do res <- p; pure $ Just res)
   <|> pure Nothing
+
+
+{- =====================================================
+   Above here was what came from Text.Parser.
+   Below here are things I've implemented.
+-}
+
+{- QUESTION/DISCUSSION: That 'Delay True' appears in the resulting
+   type signature from the use of 'fail'. But I don't understand
+   why there's a Delay in there. Ultimately it seems to work ok,
+   I presume because && Delay True gets evaluated when type checking
+   and has no effect because && True is a no-op.
+-}
+
+{- QUESTION/DISCUSSION: Do all operators with the same name have to
+   have the same fixity (so if this parser and Lightyear are both
+   imported, do they both have to have this fixity? Or is that
+   type driven by ad-hoc overloading? -}
+infixl 0 <?> -- same fixity as Lightyear.A
+
+export ( <?> ) : Grammar a b c -> String -> Grammar a (b && Delay True) c
+p <?> name = p <|> fail ("Expecting " ++ name)
+
+export predicate : (tok -> Bool) -> Grammar tok True tok
+predicate pred =
+      terminal (\c => if pred c then Just c else Nothing)
+
+export sym : (Eq tok, Show tok) => tok -> Grammar tok True tok
+sym ch = predicate (== ch) <?> ("specific symbol " ++ show ch)
+
+export specificChar : Char -> Grammar Char True Char
+specificChar = sym
+
+export notChar : Char -> Grammar Char True Char
+notChar ch = predicate (/= ch) <?> ("anything except character " ++ cast ch) 
+
+export anySym : Grammar x True x
+anySym = terminal Just
+
+export oneOf : Eq x => List x -> Grammar x True x
+oneOf syms = predicate (\c => c `elem` syms)
+
+export noneOf : Eq x => List x -> Grammar x True x
+noneOf syms = predicate (\c => not (c `elem` syms))
+

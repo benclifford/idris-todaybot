@@ -12,18 +12,6 @@ import Todaybot.XXPARSER
 import Todaybot.Date
 import Todaybot.Morph
 
-public export oneOf : Eq x => List x -> Grammar x True x
-oneOf syms = terminal (\c => if c `elem` syms then Just c else Nothing)
-
-public export noneOf : Eq x => List x -> Grammar x True x
-noneOf syms = terminal (\c => if c `elem` syms then Nothing else Just c)
-
-public export char : Eq x => x -> Grammar x True x
-char sym = terminal (\c => if c == sym then Just c else Nothing)
-
-public export anyChar : Grammar x True x
-anyChar = terminal Just
-
 public export pureOrFail : Maybe a -> Grammar x False a
 pureOrFail (Just a) = pure a
 pureOrFail (Nothing) = fail "could not parse digit sequence (impossible?)"
@@ -64,14 +52,14 @@ normaliseYear i = case i > 2000 of
 public export titleDateParser : Grammar Char True Date
 titleDateParser = do
   many $ noneOf (unpack "[")
-  char '['
+  sym '['
   d <- dateComponent
   sep <- oneOf ['/', '-', '.', '\\']
   m <- dateComponent
-  char sep
+  sym sep
   y <- dateComponent
-  char ']'
-  many anyChar
+  sym ']'
+  many anySym
   pure (MkDate (normaliseYear y) m d)
 
 
@@ -138,13 +126,13 @@ normaliseYear i = case i > 2000 of
 partial public export titleDateParser : Parser Date
 titleDateParser = do
   many $ noneOf "["
-  char '['
+  sym '['
   d <- dateComponent
-  char '/'
+  sym '/'
   m <- dateComponent
-  char '/'
+  sym '/'
   y <- dateComponent
-  char ']'
+  sym ']'
   pure (MkDate (normaliseYear y) m d)
 
 -- 'partial' because of partial dateComponent - see notes there.
