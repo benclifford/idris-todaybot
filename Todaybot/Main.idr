@@ -474,11 +474,15 @@ list values not list types.
 
 -}
 
--- partial due to 'fromJust'
-partial forceFlair : String -> JsonValue -> String -> String -> Eff () [STDIO, CURL CurlInitOK, EXCEPTION String, MEMORY]
+maybeToException : Maybe x -> Eff x [EXCEPTION String]
+maybeToException mx = case mx of
+  Just x => pure x
+  Nothing => raise "maybeToException: got Nothing"
+
+forceFlair : String -> JsonValue -> String -> String -> Eff () [STDIO, CURL CurlInitOK, EXCEPTION String, MEMORY]
 forceFlair access_token post new_flair new_css_class = do
 
-  let fullname = fromJust $ do  
+  let fullnameM = do  
     kind <- (getkey "kind" post) >>= stringFromJSON
     dat <- getkey "data" post
     ident <- (getkey "id" dat) >>= stringFromJSON
@@ -486,6 +490,8 @@ forceFlair access_token post new_flair new_css_class = do
     -- QUESTION/DISCUSSION:
     -- if I use 'return' here, the deprecation warning for it
     -- is emitted twice.
+
+  fullname <- maybeToException fullnameM
 
   -- QUESTION/DISCUSSION: does curl connection sharing only
   -- happen on the same handle? if so it would be advantageous
@@ -568,7 +574,7 @@ logAndMaybeException act =
 
 
 -- TODO: access_token should be in some kind of environment.
-partial processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL CurlInitOK]
+processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL CurlInitOK]
 processPost access_token post = do
 
   -- now extract the heading from this:
