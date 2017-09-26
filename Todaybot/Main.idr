@@ -1,4 +1,7 @@
 
+-- from prelude
+import Prelude.Strings
+
 -- -p config
 import Config.YAML
 import Config.JSON
@@ -688,10 +691,17 @@ processPost access_token post = do
 
   flairRule access_token post "PAST" (inpast == Just True && (  postflair == Just ("Today", "today") || postflair == Nothing )) "Archived" "archived"
 
-  -- there is also a non-date transition:
-  -- is this an interest check? (actually, this is distinct from
-  -- dated post behaviour...) - If flair is blank, set flair to interest
-  -- deal with that later though
+  -- QUESTION/DISCUSSION
+  -- In Haskell, this case folding happens which is better for unicode
+  -- but using toUpper is probably ok.
+  -- (T.toCaseFold "[Interest") `T.isPrefixOf` (T.toCaseFold title)
+  let isInterestCheckM = do
+        t <- posttitle
+        pure $ toUpper "[Interest" `Prelude.Strings.isPrefixOf` toUpper t
+
+  let isInterestCheck = isInterestCheckM == Just True
+
+  flairRule access_token post "INTEREST" isInterestCheck "Interest Check" "interestcheck"
 
   -- I should probably switch to testing with r/benclifford at this
   -- point because soon I want to test actually changing flair on
