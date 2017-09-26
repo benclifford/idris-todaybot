@@ -572,6 +572,14 @@ logAndMaybeException act =
     Left e =>  putStrLn ("logAndMaybeException: " ++ e)
             *> pure (Nothing)
 
+flairRule : String -> JsonValue -> String -> Bool -> String -> String -> Eff () [STDIO, CURL CurlInitOK, EXCEPTION String, MEMORY]
+flairRule access_token post ruleName condition flair flair_css =
+  if condition
+    then do
+      logInfo $ "Rule " ++ ruleName ++ " firing"
+      forceFlair access_token post flair flair_css
+    else logInfo $ "Rule " ++ ruleName ++ " not firing"
+
 
 -- TODO: access_token should be in some kind of environment.
 processPost : String -> JsonValue -> Eff () [STDIO, TIME, EXCEPTION String, MEMORY, CURL CurlInitOK]
@@ -664,18 +672,13 @@ processPost access_token post = do
   -- is this post today, with blank flair? => set flair to today
   -- is this post in past, with 'today' or blank flair? => set flair to archived
 
-  -- today but blank flair?
-  if (Just nowDate == postdate && postflair == Nothing) 
-    then do
-      logInfo "Rule TODAY firing: Set today flair"
-      forceFlair access_token post "Today" "today"
-    else logInfo "Rule TODAY not firing"
+  let nowDateM = Just nowDate
 
+  -- today but blank flair?
+  flairRule access_token post "TODAY" (nowDateM == postdate && postflair == Nothing) "Today" "today"
 
   -- in the past but (still) has today flair?
-  let inpast = do
-        date <- postdate
-        pure (date < nowDate)
+  let inpast = [| postdate < nowDateM |]
 
 -- QUESTION/DISCUSSION: ^
 -- when Date doesn't have an ordering instance, then the
@@ -683,12 +686,7 @@ processPost access_token post = do
 -- (and goes away if 'pure (d < nowDate)' is replaced with
 -- 'pure False'.
 
-  if inpast == Just True && (  postflair == Just ("Today", "today")
-                            || postflair == Nothing )
-    then do
-      logInfo "Rule PAST firing"
-      forceFlair access_token post "Archived" "archived" 
-    else logInfo "Rule PAST not firing"
+  flairRule access_token post "PAST" (inpast == Just True && (  postflair == Just ("Today", "today") || postflair == Nothing )) "Archived" "archived"
 
   -- there is also a non-date transition:
   -- is this an interest check? (actually, this is distinct from
